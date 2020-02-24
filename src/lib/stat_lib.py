@@ -1,9 +1,8 @@
 import numpy as np
 
-import scipy.spatial.distance as ssd
-from scipy.cluster.hierarchy import dendrogram, linkage, fcluster
+from scipy.cluster.hierarchy import linkage, fcluster
 
-from src.matrix_lib import set_diag_zero
+from src.lib.matrix_lib import set_diag_zero
 
 def CDF(p):
     rez = np.zeros(len(p) + 1)
