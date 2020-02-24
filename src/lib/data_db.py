@@ -43,7 +43,7 @@ class BehaviouralNeuronalDatabase :
             thisPhaseMap = thisMap
         else:
             thisPhaseMap = thisMap[thisMap['phase'] == phase]
-        return min(thisPhaseMap.index), max(thisPhaseMap.index) + 1   # Note upper bound non-inclusive
+        return min(thisPhaseMap.index), max(thisPhaseMap.index)   # Note upper bound is inclusive
 
 
     def _extract_high_activity(self, data, p=0.9):
@@ -112,7 +112,7 @@ class BehaviouralNeuronalDatabase :
         FPS_DOWNSAMPLED = 10.0   # Framerate of downsampled calcium signal
 
         if 'behavior' in self.metaDataFrames.keys():
-            self.metaDataFrames['behaviorStates'] = pd.DataFrame([], columns=["mousekey", "trialDirection", "performance"])
+            self.metaDataFrames['behaviorStates'] = pd.DataFrame([], columns=["mousekey", "direction", "performance"])
             self.behaviorStateFrames = []
 
             nBehaviorFiles = self.metaDataFrames['behavior'].shape[0]
@@ -173,55 +173,28 @@ class BehaviouralNeuronalDatabase :
         return [dataNeuroThis[start:end] for start, end in zip(startFrameIdxs, endFrameIdxs)]
 
 
-    # Return list of shape [nTrial, [nFrame, nCell]] for selected interval
-    # The number of frames vary over trial, so numpy array cannot be used
-    def get_data_session_interval(self, mousekey, startState, endState, direction, performance, dataType='raw'):
-        rowsNeuroThis = pandas_lib.get_rows_colvals(self.metaDataFrames['neuro'], {"mousekey" : mousekey})
-        idxNeuro, rowNeuro = pandas_lib.get_one_row(rowsNeuroThis)
-
-        rowsBehavThis = pandas_lib.get_rows_colvals_exact(self.metaDataFrames['behaviorStates'], [mousekey, direction, performance])
-        idxBehavior, rowBehavior = pandas_lib.get_one_row(rowsBehavThis)
-
-        if (idxNeuro is None) or (idxBehavior is None):
-            return None
-        else:
-            return self.get_data_session_interval_fromindex(idxNeuro, idxBehavior, startState, endState, dataType)
-
-
-    def get_data_session_phase(self, mousekey, phase, direction, performance):
-        startState, endState = self._phase_to_interval(phase, performance)
-        return self.get_data_session_interval(mousekey, startState, endState, direction, performance)
-
-
-    def get_data_mouse_interval(self, mousename, startState, endState, direction, performance, dataType='raw'):
+    def get_data_from_interval(self, startState, endState, queryDict):
         rez = []
 
-        rowsNeuro = pandas_lib.get_rows_colval(self.metaDataFrames['neuro'], "mousename", mousename)
+        dataType = queryDict["datatype"] if "datatype" in queryDict.keys() else "raw"
+
+        queryDictNeuro = {k : v for k,v in queryDict.items() if k in ["mousename", "mousekey"]}
+        queryDictBehav = {k: v for k, v in queryDict.items() if k not in ["mousename", "datatype"]}
+
+        rowsNeuro = pandas_lib.get_rows_colvals(self.metaDataFrames['neuro'], queryDictNeuro)
         for idxNeuro, rowNeuro in rowsNeuro.iterrows():
-            thisMouseKey = rowNeuro["mousekey"]
-            rowsBehavThis = pandas_lib.get_rows_colvals_exact(self.metaDataFrames['behaviorStates'], [thisMouseKey, direction, performance])
+            queryDictBehav["mousekey"] = rowNeuro["mousekey"]
+            rowsBehavThis = pandas_lib.get_rows_colvals(self.metaDataFrames['behaviorStates'], queryDictBehav)
             idxBehavior, rowBehavior = pandas_lib.get_one_row(rowsBehavThis)
 
             if idxBehavior is None:
-                print("No behaviour found for", [thisMouseKey, direction, performance], "; skipping")
+                print("No behaviour found for", queryDict, "; skipping")
             else:
                 rez += self.get_data_session_interval_fromindex(idxNeuro, idxBehavior, startState, endState, dataType)
 
         return rez
 
 
-    def get_data_mouse_phase(self, mousename, phase, direction, performance, dataType='raw'):
-        startState, endState = self._phase_to_interval(phase, performance)
-        return self.get_data_mouse_interval(mousename, startState, endState, direction, performance, dataType)
-
-
-    def get_data_all_interval(self, startState, endState, direction, performance, dataType='raw'):
-        rez = []
-        for mousename in self.mice:
-            rez += self.get_data_mouse_interval(mousename, startState, endState, direction, performance, dataType)
-        return rez
-
-
-    def get_data_all_phase(self, phase, direction, performance, dataType='raw'):
-        startState, endState = self._phase_to_interval(phase, performance)
-        return self.get_data_all_interval(startState, endState, direction, performance, dataType)
+    def get_data_from_phase(self, phase, queryDict):
+        startState, endState = self._phase_to_interval(phase, queryDict["performance"])
+        return self.get_data_from_interval(startState, endState, queryDict)
