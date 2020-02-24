@@ -5,16 +5,15 @@ from scipy.cluster.hierarchy import linkage, fcluster
 from src.lib.matrix_lib import set_diag_zero
 
 def CDF(p):
-    rez = np.zeros(len(p) + 1)
-    for i in range(len(p)):
-        rez[i + 1] = rez[i] + p[i]
-    return rez
+    nCDF = len(p) + 1
+    y = np.linspace(0, 1, nCDF)
+    x = np.zeros(nCDF)
+    for i in range(nCDF-1):
+        x[i + 1] = x[i] + p[i]
+    return x, y
 
-def empirical_bounds(data, p):
-    dataSorted = np.sort(data)
-    nData = len(data)
-    nBound = int(p * nData)
-    return dataSorted[nBound], dataSorted[-nBound]
+def tolerance_interval(data, p):
+    return np.percentile(data, p), np.percentile(data, 1-p)
 
 def metric(t1, t2):
     ord12 = (t1 < t2).astype(float)

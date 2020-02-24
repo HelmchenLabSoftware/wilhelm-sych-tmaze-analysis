@@ -5,10 +5,10 @@ import pandas as pd
 from os.path import basename, dirname, join, isfile, splitext
 
 from src.lib.sys_lib import strlst2date
-# from codes.lib.data_io.yaro.mouse_performance import mouse_performance_allsessions
-from src.lib.pandas_lib import filter_rows_colval, filter_rows_colvals, get_one_row
+import src.lib.pandas_lib as pandas_lib
 from src.lib.matlab_lib import loadmat
 from src.lib.os_lib import getfiles_walk
+from src.lib.baseline_lib import zscore, crop_quantile
 
 from IPython.display import display
 from ipywidgets import IntProgress
@@ -38,54 +38,68 @@ class BehaviouralNeuronalDatabase :
 
     def _phase_to_interval(self, phase, performance):
         thisMap = self.metaDataFrames['interval_maps'][performance]
-        thisPhaseMap = thisMap[thisMap['phase'] == phase]
+
+        if phase is None:  # Equivalently all phases
+            thisPhaseMap = thisMap
+        else:
+            thisPhaseMap = thisMap[thisMap['phase'] == phase]
         return min(thisPhaseMap.index), max(thisPhaseMap.index) + 1   # Note upper bound non-inclusive
 
 
+    def _extract_high_activity(self, data, p=0.9):
+        return np.array([crop_quantile(data[:, i], p) for i in range(data.shape[1])]).T
+
+
     def _find_parse_data_files(self, rootPath):
+        # Remove non-digits from a string
+        drop_non_digit = lambda s: ''.join([i for i in s if i.isdigit()])
+
+        # # Convert string "YYYYMMDD" into date object
+        # def _digits2date(sd):
+        #     return strlst2date([sd[:4], sd[4:6], sd[6:]])
+
         dataWalk = getfiles_walk(rootPath, [".mat", "AcceptedCells"])
         behavWalk = getfiles_walk(rootPath, [".mat", "Behavior"])
 
-        drop_non_digit = lambda s: ''.join([i for i in s if i.isdigit()])
-        
-        def digits2date(s):
-            sd = drop_non_digit(s)
-            return strlst2date([sd[:4], sd[4:6], sd[6:]])
+        # Fill neuro dict
+        self.metaDataFrames['neuro'] = pd.DataFrame([], columns=["mousename", "date", "mousekey", "path"])
+        for path, name in dataWalk:
+            sp = splitext(name)[0].split('_')
+            mousename = sp[0].lower()  # Convert mousename to lowercase
+            datestr = drop_non_digit(sp[-1])
+            mousekey = mousename + '_' + datestr
+            pathname = join(path, name)
+            self.metaDataFrames['neuro'] = pandas_lib.add_list_as_row(self.metaDataFrames['neuro'], [mousename, datestr, mousekey, pathname])
 
+        # Fill behaviour dict
+        self.metaDataFrames['behavior'] = pd.DataFrame([], columns=["mousename", "date", "mousekey", "path"])
+        for path, name in behavWalk:
+            sp = splitext(name)[0].split('_')
+            mousename = sp[1].lower()  # Convert mousename to lowercase
+            datestr = drop_non_digit(sp[-1])
+            mousekey = mousename + '_' + datestr
+            pathname = join(path, name)
+            self.metaDataFrames['behavior'] = pandas_lib.add_list_as_row(self.metaDataFrames['behavior'], [mousename, datestr, mousekey, pathname])
 
-        dataSplit = [splitext(name)[0].split('_') for path, name in dataWalk]
-        behavSplit = [splitext(name)[0].split('_') for path, name in behavWalk]
-
-        dataDict = {
-            "mousename" : [sp[0].lower() for sp in dataSplit],
-            "date"      : [digits2date(drop_non_digit(sp[-1])) for sp in dataSplit],
-            "mousekey"  : ['_'.join([sp[0].lower(), drop_non_digit(sp[-1])]) for sp in dataSplit],
-            "path"      : [join(path, name) for path, name in dataWalk]
-        }
-
-        behavDict = {
-            "mousename" : [sp[1].lower() for sp in behavSplit],
-            "date"      : [digits2date(drop_non_digit(sp[-1])) for sp in behavSplit],
-            "mousekey"  : ['_'.join([sp[1].lower(), drop_non_digit(sp[-1])]) for sp in behavSplit],
-            "path"      : [join(path, name) for path, name in behavWalk]
-        }
-
-        self.metaDataFrames['neuro'] = pd.DataFrame(dataDict)
-        self.metaDataFrames['behavior'] = pd.DataFrame(behavDict)
-
-        self.mice = set(dataDict['mousename'])
-        self.mice.update(behavDict['mousename'])
+        self.mice = set(self.metaDataFrames['neuro']['mousename'])
+        self.mice.update(set(self.metaDataFrames['behavior']['mousename']))
 
 
     def read_neuro_files(self):
         if 'neuro' in self.metaDataFrames.keys():
             nNeuroFiles = self.metaDataFrames['neuro'].shape[0]
 
-            self.dataNeuronal = []
+            self.dataNeuronal = {"raw" : [], "high" : []}
             progBar = IntProgress(min=0, max=nNeuroFiles, description='Read Neuro Data:')
             display(progBar)  # display the bar
             for idx, filepath in enumerate(self.metaDataFrames['neuro']['path']):
-                self.dataNeuronal += [list(loadmat(filepath, waitRetry=3).values())[0]]
+                tracesRaw = list(loadmat(filepath, waitRetry=3).values())[0]
+                self.dataNeuronal["raw"] += [tracesRaw]
+                self.dataNeuronal["high"] += [self._extract_high_activity(tracesRaw, p=0.9)]
+                # self.dataNeuronal["zscore"] += zscore(tracesRaw, axis=0)
+                #
+                # self._preprocess_neuronal(tracesRaw)
+
                 progBar.value += 1
 
         else:
@@ -93,22 +107,24 @@ class BehaviouralNeuronalDatabase :
 
 
     def read_behavior_files(self):
-        FPS_RAW = 20.0
+        FPS_TTL = 2000.0         # Microelectronics sampling timescale
+        FPS_RAW = 20.0           # Framerate of raw calcium signal
+        FPS_DOWNSAMPLED = 10.0   # Framerate of downsampled calcium signal
 
         if 'behavior' in self.metaDataFrames.keys():
+            self.metaDataFrames['behaviorStates'] = pd.DataFrame([], columns=["mousekey", "trialDirection", "performance"])
             self.behaviorStateFrames = []
-            behaviorStateKeys = []
 
             nBehaviorFiles = self.metaDataFrames['behavior'].shape[0]
-
             progBar = IntProgress(min=0, max=nBehaviorFiles, description='Read Neuro Data:')
             display(progBar)  # display the bar
             for idx, row in self.metaDataFrames['behavior'].iterrows():
                 print("Reading", row['path'])
                 M = loadmat(row['path'], waitRetry=3)
 
-                firstTTLIdx = np.where(M['allSignals'][:, 0] > 2)[0][0]
-                timeAlign = np.round(firstTTLIdx / 100) / FPS_RAW
+                firstTTLIdx = np.where(M['allSignals'][:, 0] > 2)[0][0]   # Trials start with first pulse
+                nFramesRaw = np.round(firstTTLIdx / FPS_TTL * FPS_RAW)
+                timeAlign = nFramesRaw / FPS_RAW                          # Compute corresponding event in calcium timescale
 
                 for trialDirection in ['L', 'R']:
                     for perf in ['Correct', 'Mistake']:
@@ -127,82 +143,85 @@ class BehaviouralNeuronalDatabase :
                             if nEvent != len(self.metaDataFrames['interval_maps'][perf]):
                                 raise ValueError("Unexpected", nEvent)
 
+                            # Align raw calcium time intervals to the first pulse
                             timeIntervalsAligned = timeIntervals - timeAlign
-                            timeIntervalsDownsampled = timeIntervalsAligned / 2
 
-                            self.behaviorStateFrames += [np.round(timeIntervalsDownsampled * 10).astype(int)]
-                            behaviorStateKeys += [[row["mousekey"], trialDirection, perf]]
+                            # Convert time intervals into frames.
+                            # Due to downsampling, framerate is lower than original
+                            idxsFrameIntervalsAligned = np.round(timeIntervalsAligned * FPS_DOWNSAMPLED).astype(int)
+
+                            self.behaviorStateFrames += [idxsFrameIntervalsAligned]
+                            self.metaDataFrames['behaviorStates'] = pandas_lib.add_list_as_row(
+                                self.metaDataFrames['behaviorStates'], [row["mousekey"], trialDirection, perf])
 
                 progBar.value += 1
-
-            self.metaDataFrames['behaviorStates'] = pd.DataFrame(behaviorStateKeys, columns=["mousekey", "trialDirection", "performance"])
 
         else:
             print("No Neuro files loaded, skipping reading part")
 
 
-    def get_interval_session_fromrow(self, idxNeuro, rowNeuro, idxBehavior, rowBehavior, startState, endState):
-        dataNeuroThis = self.dataNeuronal[idxNeuro]
+    def get_data_session_interval_fromindex(self, idxNeuro, idxBehavior, startState, endState, dataType='raw'):
+        if (idxNeuro is None) or (idxBehavior is None):
+            raise ValueError("Unexpected indices", idxNeuro, idxBehavior)
+
+        dataNeuroThis = self.dataNeuronal[dataType][idxNeuro]
         framesArrThis = self.behaviorStateFrames[idxBehavior]
 
         startFrameIdxs = framesArrThis[:, startState]
         endFrameIdxs = framesArrThis[:, endState]
-
-        print(list(zip(startFrameIdxs, endFrameIdxs)))
 
         return [dataNeuroThis[start:end] for start, end in zip(startFrameIdxs, endFrameIdxs)]
 
 
     # Return list of shape [nTrial, [nFrame, nCell]] for selected interval
     # The number of frames vary over trial, so numpy array cannot be used
-    def get_interval_session(self, mousekey, startState, endState, direction, performance):
-        idxNeuro, rowNeuro = get_one_row(filter_rows_colvals(self.metaDataFrames['neuro'], {"mousekey" : mousekey}))
-        
-        idxBehavior, rowBehavior = get_one_row(filter_rows_colvals(self.metaDataFrames['behaviorStates'], {
-            "mousekey" : mousekey, "trialDirection" : direction, "performance" : performance}
-        ))
+    def get_data_session_interval(self, mousekey, startState, endState, direction, performance, dataType='raw'):
+        rowsNeuroThis = pandas_lib.get_rows_colvals(self.metaDataFrames['neuro'], {"mousekey" : mousekey})
+        idxNeuro, rowNeuro = pandas_lib.get_one_row(rowsNeuroThis)
+
+        rowsBehavThis = pandas_lib.get_rows_colvals_exact(self.metaDataFrames['behaviorStates'], [mousekey, direction, performance])
+        idxBehavior, rowBehavior = pandas_lib.get_one_row(rowsBehavThis)
 
         if (idxNeuro is None) or (idxBehavior is None):
             return None
         else:
-            return self.get_interval_session_fromrow(idxNeuro, rowNeuro, idxBehavior, rowBehavior, startState, endState)
+            return self.get_data_session_interval_fromindex(idxNeuro, idxBehavior, startState, endState, dataType)
 
 
-    def get_phase_session(self, mousekey, phase, direction, performance):
+    def get_data_session_phase(self, mousekey, phase, direction, performance):
         startState, endState = self._phase_to_interval(phase, performance)
-        return self.get_interval_session(mousekey, startState, endState, direction, performance)
+        return self.get_data_session_interval(mousekey, startState, endState, direction, performance)
 
 
-    def get_interval_mouse(self, mousename, startState, endState, direction, performance):
+    def get_data_mouse_interval(self, mousename, startState, endState, direction, performance, dataType='raw'):
         rez = []
 
-        rowsNeuro = filter_rows_colval(self.metaDataFrames['neuro'], "mousename", mousename)
+        rowsNeuro = pandas_lib.get_rows_colval(self.metaDataFrames['neuro'], "mousename", mousename)
         for idxNeuro, rowNeuro in rowsNeuro.iterrows():
             thisMouseKey = rowNeuro["mousekey"]
-            thisBehaviorKey = {"mousekey": thisMouseKey, "trialDirection": direction, "performance": performance}
-
-            idxBehavior, rowBehavior = get_one_row(filter_rows_colvals(self.metaDataFrames['behaviorStates'], thisBehaviorKey))
+            rowsBehavThis = pandas_lib.get_rows_colvals_exact(self.metaDataFrames['behaviorStates'], [thisMouseKey, direction, performance])
+            idxBehavior, rowBehavior = pandas_lib.get_one_row(rowsBehavThis)
 
             if idxBehavior is None:
-                print("No behaviour found for", thisBehaviorKey, "; skipping")
+                print("No behaviour found for", [thisMouseKey, direction, performance], "; skipping")
             else:
-                rez += self.get_interval_session_fromrow(idxNeuro, rowNeuro, idxBehavior, rowBehavior, startState, endState)
+                rez += self.get_data_session_interval_fromindex(idxNeuro, idxBehavior, startState, endState, dataType)
 
         return rez
 
 
-    def get_phase_mouse(self, mousename, phase, direction, performance):
+    def get_data_mouse_phase(self, mousename, phase, direction, performance, dataType='raw'):
         startState, endState = self._phase_to_interval(phase, performance)
-        return self.get_interval_mouse(mousename, startState, endState, direction, performance)
+        return self.get_data_mouse_interval(mousename, startState, endState, direction, performance, dataType)
 
 
-    def get_interval_all(self, startState, endState, direction, performance):
+    def get_data_all_interval(self, startState, endState, direction, performance, dataType='raw'):
         rez = []
         for mousename in self.mice:
-            rez += self.get_interval_mouse(mousename, startState, endState, direction, performance)
+            rez += self.get_data_mouse_interval(mousename, startState, endState, direction, performance, dataType)
         return rez
 
 
-    def get_phase_all(self, phase, direction, performance):
+    def get_data_all_phase(self, phase, direction, performance, dataType='raw'):
         startState, endState = self._phase_to_interval(phase, performance)
-        return self.get_interval_all(startState, endState, direction, performance)
+        return self.get_data_all_interval(startState, endState, direction, performance, dataType)
