@@ -1,6 +1,7 @@
 import json
 import numpy as np
 import pandas as pd
+from copy import deepcopy
 
 from os.path import basename, dirname, join, isfile, splitext
 
@@ -185,16 +186,25 @@ class BehaviouralNeuronalDatabase :
         for idxNeuro, rowNeuro in rowsNeuro.iterrows():
             queryDictBehav["mousekey"] = rowNeuro["mousekey"]
             rowsBehavThis = pandas_lib.get_rows_colvals(self.metaDataFrames['behaviorStates'], queryDictBehav)
-            idxBehavior, rowBehavior = pandas_lib.get_one_row(rowsBehavThis)
 
-            if idxBehavior is None:
-                print("No behaviour found for", queryDict, "; skipping")
+            if len(rowsBehavThis) == 0:
+                print("No behaviour found for", queryDictBehav, "; skipping")
             else:
-                rez += self.get_data_session_interval_fromindex(idxNeuro, idxBehavior, startState, endState, dataType)
+                for idxBehavior, rowBehavior in rowsBehavThis.iterrows():
+                    rez += self.get_data_session_interval_fromindex(idxNeuro, idxBehavior, startState, endState, dataType)
 
         return rez
 
 
     def get_data_from_phase(self, phase, queryDict):
-        startState, endState = self._phase_to_interval(phase, queryDict["performance"])
-        return self.get_data_from_interval(startState, endState, queryDict)
+        if "performance" in queryDict.keys():
+            startState, endState = self._phase_to_interval(phase, queryDict["performance"])
+            return self.get_data_from_interval(startState, endState, queryDict)
+        else:
+            # If performance is not specified, merge trials for all performance measures
+            rez = []
+            queryDictCopy = deepcopy(queryDict)
+            for perf in set(self.metaDataFrames['behaviorStates']['performance']):
+                queryDictCopy["performance"] = perf
+                rez += self.get_data_from_phase(phase, queryDictCopy)
+            return rez
