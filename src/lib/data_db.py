@@ -2,6 +2,7 @@ import json
 import numpy as np
 import pandas as pd
 from copy import deepcopy
+from collections import OrderedDict
 
 from os.path import basename, dirname, join, isfile, splitext
 
@@ -30,6 +31,10 @@ class BehaviouralNeuronalDatabase :
                 "Correct" : pd.DataFrame(tmp['Correct'], columns=['index', 'phase', 'label']),
                 "Mistake" : pd.DataFrame(tmp['Mistake'], columns=['index', 'phase', 'label'])
             }
+            self.phases = {
+                "Correct" : OrderedDict.fromkeys(self.metaDataFrames['interval_maps']["Correct"]["phase"]),
+                "Mistake" : OrderedDict.fromkeys(self.metaDataFrames['interval_maps']["Mistake"]["phase"])
+            }
 
         ##################################
         # Find and parse data files
@@ -44,10 +49,19 @@ class BehaviouralNeuronalDatabase :
             thisPhaseMap = thisMap
         else:
             thisPhaseMap = thisMap[thisMap['phase'] == phase]
-        return min(thisPhaseMap.index), max(thisPhaseMap.index)   # Note upper bound is inclusive
+
+        nStates = len(thisMap)
+        idxStart = min(thisPhaseMap.index)
+
+        # Note 1: upper bound is inclusive
+        # Note 2: phase next to each state denotes interval starting at that state and ending at next state
+        # Note 3: phase indicator at last state is effectively useless, because trials stops at that state
+        idxEnd = np.min([nStates-1, max(thisPhaseMap.index) + 1])
+
+        return idxStart, idxEnd
 
 
-    def _extract_high_activity(self, data, p=0.9):
+    def _extract_high_activity(self, data, p):
         return np.array([crop_quantile(data[:, i], p) for i in range(data.shape[1])]).T
 
 
@@ -96,7 +110,7 @@ class BehaviouralNeuronalDatabase :
             for idx, filepath in enumerate(self.metaDataFrames['neuro']['path']):
                 tracesRaw = list(loadmat(filepath, waitRetry=3).values())[0]
                 self.dataNeuronal["raw"] += [tracesRaw]
-                self.dataNeuronal["high"] += [self._extract_high_activity(tracesRaw, p=0.9)]
+                self.dataNeuronal["high"] += [self._extract_high_activity(tracesRaw, p=0.95)]
                 # self.dataNeuronal["zscore"] += zscore(tracesRaw, axis=0)
                 #
                 # self._preprocess_neuronal(tracesRaw)
@@ -171,7 +185,7 @@ class BehaviouralNeuronalDatabase :
         startFrameIdxs = framesArrThis[:, startState]
         endFrameIdxs = framesArrThis[:, endState]
 
-        return [dataNeuroThis[start:end] for start, end in zip(startFrameIdxs, endFrameIdxs)]
+        return [dataNeuroThis[start:end].T for start, end in zip(startFrameIdxs, endFrameIdxs)]
 
 
     def get_data_from_interval(self, startState, endState, queryDict):
@@ -191,7 +205,12 @@ class BehaviouralNeuronalDatabase :
                 print("No behaviour found for", queryDictBehav, "; skipping")
             else:
                 for idxBehavior, rowBehavior in rowsBehavThis.iterrows():
-                    rez += self.get_data_session_interval_fromindex(idxNeuro, idxBehavior, startState, endState, dataType)
+                    rezThis = self.get_data_session_interval_fromindex(idxNeuro, idxBehavior, startState, endState, dataType)
+
+                    if np.any([np.prod(d.shape) == 0 for d in rezThis]):
+                        print("Warning: ", rowNeuro["mousekey"], "has zero interval", startState, endState)
+
+                    rez += rezThis
 
         return rez
 

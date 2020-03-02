@@ -1,11 +1,14 @@
 import numpy as np
 import matplotlib.pyplot as plt
+from scipy import interpolate
 from scipy.stats import mannwhitneyu
 from IPython.display import display
 from copy import deepcopy
 
 from src.lib.pandas_lib import outer_product_df
 from src.lib.classifier_lib import binary_classifier
+from src.lib.metric_lib import get_metric_by_name
+
 
 
 
@@ -73,12 +76,94 @@ def clustering_plots(matRescaled, metricByConn, clustering):
         ax2[1].plot(mu, label=str(iCluster))
 
 
+
+def plot_metric_by_interval(ax, dataDB, queryDict, metricName, label):
+    metricFunc = get_metric_by_name(metricName)
+    nInterv = len(dataDB.metaDataFrames['interval_maps'][queryDict["performance"]]) - 1
+
+    metricValues = []   # [nInterv, nDataPoint]
+    for iInterv in range(nInterv):
+        data = dataDB.get_data_from_interval(iInterv, iInterv+1, queryDict)
+
+        metricValues += [metricFunc(data)]
+
+    metricValues = np.array(metricValues)
+
+    # nDim, nData = rez.shape
+    x = np.arange(1, nInterv + 1).astype(int)
+    rezMu = np.nanmean(metricValues, axis=1)
+    # rezStd = np.nanstd(rez, axis=1) / np.sqrt(nData)
+
+    ax.bar(x, rezMu, width=1, alpha=0.2, label=label)
+    plt.setp(ax, xticks=x, xticklabels=x)
+
+    phases = dataDB.phases[queryDict["performance"]]
+    intervBounds = []
+    for phase in phases:
+        intervBounds += list(dataDB._phase_to_interval(phase, queryDict["performance"]))
+
+    for vline in set(intervBounds):
+        ax.axvline(x=vline+0.5, color='r', linestyle='--')
+
+    # # Plot
+    # ax.fill_between(np.arange(nInterv-1), rezMu-rezStd, rezMu+rezStd, alpha=0.2)
+    # ax.plot(x, rezMu, label=label)
+
+
+def plot_metric_by_phase(ax, dataDB, queryDict, metricName, label):
+    metricFunc = get_metric_by_name(metricName)
+    phases = dataDB.phases[queryDict["performance"]]
+
+    rez = []
+    for phase in phases:
+        data = dataDB.get_data_from_phase(phase, queryDict)
+        rez += [metricFunc(data)]
+
+    tickCoords = np.arange(len(phases)) + 1
+    rez = np.array(rez)
+
+    ax.violinplot(dataset=rez.T, showextrema=False)
+    ax.plot(tickCoords, np.nanmean(rez, axis=1), '*--', color='blue')
+    plt.setp(ax, xticks=tickCoords, xticklabels=phases)
+
+
+def plot_stretched_intervals(ax, dataDB, queryDict, idxStart, idxEnd, nInterp=100):
+
+    rezLst = []  # [nInterv, nDataPoint]
+    timesLst = []
+    for iInterv in range(idxStart, idxEnd):
+        dataLst = dataDB.get_data_from_interval(iInterv, iInterv + 1, queryDict)
+        rez = []
+        times = []
+        for data in dataLst:
+            rez += [np.nanmean(data, axis=0)]
+            times += [np.linspace(iInterv, iInterv+1, len(rez[-1]))]
+
+        rezLst += [rez]
+        timesLst += [times]
+
+
+    nInterv = idxEnd-idxStart
+    nTrial = len(timesLst[0])
+
+    timesArr = [np.hstack([timesLst[iInterv][iTrial] for iInterv in range(nInterv)]) for iTrial in range(nTrial)]
+    rezArr = [np.hstack([rezLst[iInterv][iTrial] for iInterv in range(nInterv)]) for iTrial in range(nTrial)]
+
+    xRez = np.linspace(idxStart, idxEnd, nInterp)
+    yLst = [interpolate.interp1d(x, y, kind="linear")(xRez) for x,y in zip(timesArr, rezArr)]
+    muY = np.mean(yLst, axis=0)
+    stdY = np.std(yLst, axis=0)
+
+    ax.fill_between(xRez, muY-stdY, muY+stdY)
+    ax.plot(xRez, muY, color='blue')
+
+
 def table_test_metric_phase_vs_all(dataDB, phase, metricName, metricFunc):
     sweepDF = outer_product_df({
         # "mousename"   : ["m060"],
+        "datatype": ["raw", "high"],
         "performance": ["Correct", "Mistake", "All"],
-        "direction": ["L", "R", "All"],
-        "datatype": ["raw", "high"]
+        "direction": ["L", "R", "All"]
     })
 
     keyPhase = metricName + "(" + phase + ")"
@@ -121,7 +206,7 @@ def table_binary_classification(dataDB, phase, queryDict, binaryDimension):
     for i, colName in enumerate(binaryValSet):
         queryDictCopy[binaryDimension] = colName
         data = dataDB.get_data_from_phase(phase, queryDictCopy)
-        dataMetric = np.array([np.mean(d, axis=0) for d in data])
+        dataMetric = np.array([np.mean(d, axis=1) for d in data])
 
         print(queryDictCopy, dataMetric.shape)
 

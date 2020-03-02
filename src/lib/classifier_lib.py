@@ -1,5 +1,5 @@
 import numpy as np
-from sklearn.linear_model import RidgeClassifier
+from sklearn.linear_model import RidgeClassifier, LogisticRegression
 from scipy.stats import hypergeom
 
 # CrossValidation: Split data into training and test sets
@@ -24,7 +24,7 @@ def binary_classifier(x, y, nShuffle=100, pTest=0.1):
     accTestLst = []
     for i in range(nShuffle):
         xTrain, yTrain, xTest, yTest = split_train_test(x, yBinary, pTest)
-        clf = RidgeClassifier().fit(xTrain, yTrain)
+        clf = LogisticRegression(max_iter=1000).fit(xTrain, yTrain)
         accTrainLst += [clf.score(xTrain, yTrain)]
         accTestLst += [clf.score(xTest, yTest)]
 
