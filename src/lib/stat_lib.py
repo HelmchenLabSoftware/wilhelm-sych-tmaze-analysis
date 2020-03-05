@@ -2,6 +2,7 @@ import numpy as np
 
 from scipy.cluster.hierarchy import linkage, fcluster
 
+
 # Convert discrete PDF into CDF
 def discrete_CDF(p):
     nCDF = len(p) + 1
@@ -10,6 +11,7 @@ def discrete_CDF(p):
         x[i + 1] = x[i] + p[i]
     return x
 
+
 def tolerance_interval(data, p):
     return np.percentile(data, p), np.percentile(data, 1-p)
 
@@ -17,9 +19,11 @@ def tolerance_interval(data, p):
 #     ord12 = (t1 < t2).astype(float)
 #     return np.abs(2 * np.mean(ord12) - 1)
 
+
 # Cycle data backwards by n steps
 def cycle_data(x, n):
     return np.hstack((x[n:], x[:n]))
+
 
 # Compute clustering given distance matrix and distance threshold
 def cluster_dist_matrix(M, nCluster):

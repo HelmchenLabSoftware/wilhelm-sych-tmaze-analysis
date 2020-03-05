@@ -127,7 +127,7 @@ def plot_metric_by_phase(ax, dataDB, queryDict, metricName, label):
     plt.setp(ax, xticks=tickCoords, xticklabels=phases)
 
 
-def plot_stretched_intervals(ax, dataDB, queryDict, idxStart, idxEnd, nInterp=100):
+def plot_stretched_intervals(ax, dataDB, queryDict, idxStart, idxEnd, nInterp=100, label=None, color='blue'):
 
     rezLst = []  # [nInterv, nDataPoint]
     timesLst = []
@@ -154,11 +154,13 @@ def plot_stretched_intervals(ax, dataDB, queryDict, idxStart, idxEnd, nInterp=10
     muY = np.mean(yLst, axis=0)
     stdY = np.std(yLst, axis=0)
 
-    ax.fill_between(xRez, muY-stdY, muY+stdY)
-    ax.plot(xRez, muY, color='blue')
+    ax.fill_between(xRez, muY-stdY, muY+stdY, alpha=0.2, color=color)
+    ax.plot(xRez, muY, color=color, label=label)
 
 
-def table_test_metric_phase_vs_all(dataDB, phase, metricName, metricFunc):
+def table_test_metric_phase_vs_all(dataDB, phase, metricName):
+    metricFunc = get_metric_by_name(metricName)
+
     sweepDF = outer_product_df({
         # "mousename"   : ["m060"],
         "datatype": ["raw", "high"],
@@ -183,13 +185,19 @@ def table_test_metric_phase_vs_all(dataDB, phase, metricName, metricFunc):
         dataAll = dataDB.get_data_from_phase(None, queryDict)
         dataPhase = dataDB.get_data_from_phase(phase, queryDict)
 
-        metricAll = [metricFunc(data) for data in dataAll]
-        metricPhase = [metricFunc(data) for data in dataPhase]
+        metricAll = metricFunc(dataAll)
+        metricPhase = metricFunc(dataPhase)
 
         rezDF.at[idx, keyPhase] = np.mean(metricPhase)
         rezDF.at[idx, keyAll] = np.mean(metricAll)
-        rezDF.at[idx, "pVal_log10"] = np.log10(mannwhitneyu(metricAll, metricPhase)[1])
+
         rezDF.at[idx, "nTrial"] = len(dataAll)
+
+        if len(set(metricPhase)) > 1:
+            rezDF.at[idx, "pVal_log10"] = np.log10(mannwhitneyu(metricAll, metricPhase)[1])
+        else:
+            print("Warning, all trials have same test value")
+            rezDF.at[idx, "pVal_log10"] = 0.0
 
     rezDF.style.set_caption("Difference in " + metricName + " for " + phase + " phase vs all trial")
     display(rezDF)
