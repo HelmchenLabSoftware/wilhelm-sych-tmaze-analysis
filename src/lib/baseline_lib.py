@@ -8,9 +8,3 @@ def crop_quantile(x, p):
     xnorm = x - np.quantile(x, p)  # Subtract percentile to arrive at baseline
     xnorm[xnorm < 0] = 0
     return zscore(xnorm)
-
-# Convert to pmf
-def convert_pmf(x, base):
-    xnorm = x - base
-    xnorm[xnorm < 0] = 0
-    return xnorm / np.sum(xnorm)
