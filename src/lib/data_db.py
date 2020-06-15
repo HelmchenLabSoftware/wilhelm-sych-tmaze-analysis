@@ -194,6 +194,10 @@ class BehaviouralNeuronalDatabase :
             print("No Neuro files loaded, skipping reading part")
 
 
+    def get_rows(self, metaFrameName, query):
+        return pandas_helper.get_rows_colvals(self.metaDataFrames[metaFrameName], query)
+
+
     def get_data_session_interval_fromindex(self, idxNeuro, idxBehavior, startState, endState, dataType='raw'):
         if (idxNeuro is None) or (idxBehavior is None):
             raise ValueError("Unexpected indices", idxNeuro, idxBehavior)
@@ -216,10 +220,10 @@ class BehaviouralNeuronalDatabase :
         queryDictNeuro = {k : v for k,v in queryDict.items() if k in ["mousename", "session"]}
         queryDictBehav = {k: v for k, v in queryDict.items() if k not in ["mousename", "datatype"]}
 
-        rowsNeuro = pandas_helper.get_rows_colvals(self.metaDataFrames[metaKey], queryDictNeuro)
+        rowsNeuro = self.get_rows(metaKey, queryDictNeuro)
         for idxNeuro, rowNeuro in rowsNeuro.iterrows():
             queryDictBehav["session"] = rowNeuro["session"]
-            rowsBehavThis = pandas_helper.get_rows_colvals(self.metaDataFrames['behaviorStates'], queryDictBehav)
+            rowsBehavThis = self.get_rows('behaviorStates', queryDictBehav)
 
             if len(rowsBehavThis) == 0:
                 if self.verbose:

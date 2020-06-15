@@ -298,7 +298,7 @@ def clustering_plots_chill(ax, metricByConn, clustering):
     nodePerClusterCumul = [np.sum(clustering <= j + 1) for j in range(nCluster)]
 
     # Plot orderability metric matrix, and cluster separators with red lines
-    ax.imshow(metricByConn[clusterSortIdxs][:, clusterSortIdxs])
+    ax.imshow(metricByConn[clusterSortIdxs][:, clusterSortIdxs], vmin=0, vmax=1)
     for clusterSep in nodePerClusterCumul:
         ax.axvline(x=clusterSep - 0.5, color='r', alpha=0.5)
         ax.axhline(y=clusterSep - 0.5, color='r', alpha=0.5)
