@@ -11,7 +11,7 @@ from statannot import add_stat_annotation
 from mesostat.utils.pandas_helper import outer_product_df
 from mesostat.stat.machinelearning import binary_classifier
 
-from src.lib.metric_wrapper import metric_by_sweep, metric_by_phase
+from src.lib.metric_wrapper import metric_by_sweep, metric_by_phase, metric_by_selector
 
 
 def _test_rank_sum_nan_aware(data1, data2):
@@ -141,7 +141,7 @@ def plot_stretched_intervals(ax, dataDB, queryDict, idxStart, idxEnd, nInterp=10
     ax.plot(xRez, muY, color='blue')
 
 
-def table_discriminate_behavior(dataDB, selector, condition, sweepDict, metricName, trgDimOrder="r", settings=None, multiplexKey=None):
+def table_discriminate_behavior(dataDB, selector, condition, sweepDict, metricName, trgDimOrder="r", settings=None):
     if settings == None:
         settings = dict()
     sweepDF = outer_product_df(sweepDict)
@@ -151,7 +151,8 @@ def table_discriminate_behavior(dataDB, selector, condition, sweepDict, metricNa
     for i, condVal in enumerate(condValues):
         sweepDFThis = sweepDF.copy()
         sweepDFThis[condition] = condVal
-        rez = metric_by_sweep(dataDB, sweepDFThis, metricName, trgDimOrder, selector, settings, multiplexKey=multiplexKey)
+
+        rez = metric_by_sweep(dataDB, sweepDFThis, metricName, trgDimOrder, selector, settings)
 
         # If metric is not scalar, just average over all values
         ndim = rez[0].ndim
@@ -188,14 +189,14 @@ def table_discriminate_behavior(dataDB, selector, condition, sweepDict, metricNa
     display(rezDF)
 
 
-def table_discriminate_phases(dataDB, sweepDict, phases, metricName, trgDimOrder="r", settings=None, multiplexKey=None):
+def table_discriminate_phases(dataDB, sweepDict, phases, metricName, trgDimOrder="r", settings=None):
     if settings == None:
         settings = dict()
     sweepDF = outer_product_df(sweepDict)
 
     metricValuesDict = {}
     for phase in phases:
-        rez = metric_by_sweep(dataDB, sweepDF, metricName, trgDimOrder, {"phase" : phase}, settings, multiplexKey=multiplexKey)
+        rez = metric_by_sweep(dataDB, sweepDF, metricName, trgDimOrder, {"phase" : phase}, settings)
 
         # If metric is not scalar, just average over all values
         ndim = rez[0].ndim
@@ -235,7 +236,7 @@ def table_discriminate_phases(dataDB, sweepDict, phases, metricName, trgDimOrder
     display(rezDF)
 
 
-def table_binary_classification(dataDB, phase, binaryDimension, metric, dimOrdTarget, queryDict, settings, multiplexKey=None):
+def table_binary_classification(dataDB, phase, binaryDimension, metric, dimOrdTarget, queryDict, settings):
     paramValues = set(dataDB.metaDataFrames['behaviorStates'][binaryDimension])
 
     nMetricLabels = []
@@ -243,7 +244,8 @@ def table_binary_classification(dataDB, phase, binaryDimension, metric, dimOrdTa
     metricValsFlat = []
     for paramVal in paramValues:
         queryDict[binaryDimension] = paramVal
-        metricVals = metric_by_phase(dataDB, queryDict, metric, dimOrdTarget, settings, phases=[phase], multiplexKey=multiplexKey)[0]
+        metricVals = metric_by_selector(dataDB, queryDict, metric, dimOrdTarget, {"phase", phase}, settings)
+
         if metricVals[0].ndim > 1:
             metricValsFlat += [val.flatten() for val in metricVals]
         else:

@@ -4,12 +4,14 @@ import pandas as pd
 from copy import deepcopy
 from collections import OrderedDict
 
-from os.path import join, splitext
+from os.path import join, splitext, dirname
 
 from mesostat.utils.matlab_helper import loadmat
 from mesostat.utils.system import getfiles_walk
-from src.lib.baseline_lib import crop_quantile
 import mesostat.utils.pandas_helper as pandas_helper
+from mesostat.utils.signals import zscore
+
+from src.lib.baseline_lib import crop_quantile
 
 from IPython.display import display
 from ipywidgets import IntProgress
@@ -27,7 +29,11 @@ class BehaviouralNeuronalDatabase :
         ##################################
         # Read Phase Description
         ##################################
-        with open('behaviour_phases.json', 'r') as f:
+        libPath = dirname(__file__)
+        srcPath = dirname(libPath)
+        phasesFilePath = join(srcPath, 'behaviour_phases.json')
+        
+        with open(phasesFilePath, 'r') as f:
             tmp = json.load(f)
             self.metaDataFrames['interval_maps'] = {
                 "Correct" : pd.DataFrame(tmp['Correct'], columns=['index', 'phase', 'label']),
@@ -109,7 +115,7 @@ class BehaviouralNeuronalDatabase :
         if 'dff' in self.metaDataFrames.keys():
             nNeuroFiles = self.metaDataFrames['dff'].shape[0]
 
-            self.dataNeuronal = {"raw" : [], "high" : []}
+            self.dataNeuronal = {"raw" : [], "high" : [], "zscore" : []}
             progBar = IntProgress(min=0, max=nNeuroFiles, description='Read DFF Data:')
             display(progBar)  # display the bar
             for idx, filepath in enumerate(self.metaDataFrames['dff']['path']):
@@ -117,9 +123,7 @@ class BehaviouralNeuronalDatabase :
 
                 self.dataNeuronal["raw"] += [tracesRaw]
                 self.dataNeuronal["high"] += [self._extract_high_activity(tracesRaw, p=0.95)]
-                # self.dataNeuronal["zscore"] += zscore(tracesRaw, axis=0)
-                #
-                # self._preprocess_neuronal(tracesRaw)
+                self.dataNeuronal["zscore"] += [zscore(tracesRaw, axis=0)]
 
                 progBar.value += 1
         else:
@@ -194,6 +198,27 @@ class BehaviouralNeuronalDatabase :
             print("No Neuro files loaded, skipping reading part")
 
 
+    def get_nchannel(self, mousename, datatype):
+        dataFrameKey = datatype if datatype=="deconv" else "dff"
+        rows = self.get_rows(dataFrameKey, {"mousename" : mousename})
+        firstIdx = rows.index[0]
+        return self.dataNeuronal[datatype][firstIdx].shape[1]
+
+    def get_nsession(self, mousename, datatype):
+        dataFrameKey = datatype if datatype=="deconv" else "dff"
+        if mousename is None:
+            return len(self.metaDataFrames[dataFrameKey])
+        else:
+            return len(self.get_rows(dataFrameKey, {"mousename": mousename}))
+
+    def get_mouse_from_session(self, session, datatype):
+        dataFrameKey = datatype if datatype == "deconv" else "dff"
+        rows = self.get_rows(dataFrameKey, {"session": session})
+        mice = list(rows["mousename"])
+        assert len(mice) == 1, "Each session should be related to exactly one mouse"
+        return mice[0]
+
+
     def get_rows(self, metaFrameName, query):
         return pandas_helper.get_rows_colvals(self.metaDataFrames[metaFrameName], query)
 
@@ -254,10 +279,20 @@ class BehaviouralNeuronalDatabase :
                 rez += self.get_data_from_phase(phase, queryDictCopy)
             return rez
 
+    # Wrapper for selecting phase or single interval
+    def get_data_from_selector(self, selector, queryDict):
+        if "interval" in selector:
+            iInterv = selector["interval"]
+            return self.get_data_from_interval(iInterv, iInterv + 1, queryDict)
+        elif "phase" in selector:
+            return self.get_data_from_phase(selector["phase"], queryDict)
+        else:
+            raise ValueError("Unexpected selector", selector)
 
-    def get_phase_bounding_lines(dataDB, performance):
-        phases = dataDB.phases[performance]
+
+    def get_phase_bounding_lines(self, performance):
+        phases = self.phases[performance]
         intervBounds = []
         for phase in phases:
-            intervBounds += list(dataDB.phase_to_interval(phase, performance))
+            intervBounds += list(self.phase_to_interval(phase, performance))
         return set(intervBounds)

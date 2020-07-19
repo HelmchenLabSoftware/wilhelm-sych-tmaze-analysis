@@ -1,7 +1,9 @@
 import numpy as np
 import matplotlib.pyplot as plt
+from copy import deepcopy
 
 from sklearn.decomposition import PCA
+from scipy.ndimage import gaussian_filter1d
 
 '''
     TODO:
@@ -11,80 +13,131 @@ from sklearn.decomposition import PCA
     [ ] Arbitrary PCA combination
 '''
 
+class PCAPlots:
+    def __init__(self, dataDB, selector, queryDict):
+        self.dataDB = dataDB
+        self.selector = selector
+        self.queryDict = queryDict
 
-def plot_pca(ax, dataDB, selector, queryDict, condition, plot_func):
-    if "phase" in selector.keys():
-        data_func = lambda queryDictThis: dataDB.get_data_from_phase(selector["phase"], queryDictThis)
-    elif "interval" in selector.keys():
-        data_func = lambda queryDictThis: dataDB.get_data_from_interval(selector["interval"], selector["interval"]+1, queryDictThis)
-    else:
-        raise ValueError("Unexpected selector", selector)
+        data3DAll = self._get_data(queryDict)
+        data2DAll = np.hstack(data3DAll)
 
-    data3DAll = data_func(queryDict)
-    data2DAll = np.hstack(data3DAll)
-
-    pca = PCA(n_components=2)
-    pca.fit(data2DAll.T)
-
-    cmap = plt.get_cmap("tab10")
-    for i, condVal in enumerate(set(dataDB.metaDataFrames['behaviorStates'][condition])):
-        color = cmap(i)
-        dataMouseCond = data_func({**queryDict, **{condition: condVal}})
-        plot_func(ax, pca, dataMouseCond, condVal, color)
-
-    ax.legend()
-    ax.set_xlabel("PCA1")
-    ax.set_ylabel("PCA2")
+        self.pca = PCA(n_components=2)
+        self.pca.fit(data2DAll.T)
 
 
-def _plot_time_avg_scatter(ax, pca, dataMouseCond, condVal, color):
-    data2DCond = np.array([np.mean(d, axis=1) for d in dataMouseCond]).T
-    x, y = pca.transform(data2DCond.T).T
-    ax.plot(x, y, '.', label=condVal, alpha=0.5, color=color)
+    def _get_data(self, queryDict):
+        if "phase" in self.selector.keys():
+            return self.dataDB.get_data_from_phase(self.selector["phase"], queryDict)
+        elif "interval" in self.selector.keys():
+            interval = self.selector["interval"]
+            return self.dataDB.get_data_from_interval(interval, interval+1, queryDict)
+        else:
+            raise ValueError("Unexpected selector", self.selector)
 
+    def _process_trials(self, data3D, strat):
+        if strat == 'concat':
+            return np.array([np.hstack(data3D)])
+        elif strat == 'avg':
+            return np.array([np.mean(data3D, axis=0)])
+        else:
+            return data3D
 
-def _plot_pca_time_trial_avg(ax, pca, dataMouseCond, condVal, color):
-    nTimeMin = np.min([data.shape[1] for data in dataMouseCond])
-    dataCropped3D = np.array([data[:, :nTimeMin] for data in dataMouseCond])
-    dataCropped2D = np.mean(dataCropped3D, axis=0)
-    x, y = pca.transform(dataCropped2D.T).T
-    ax.plot(x, y, label=condVal, alpha=0.5, color=color)
+    def _accumulate(self, data2D, strat):
+        if strat == 'cumulative':
+            return data2D.cumsum(axis=1)
+        elif strat == 'gaussfilter':
+            return gaussian_filter1d(data2D, 2, axis=1, mode="reflect")
+            # convFunc = lambda m: np.convolve(m, filt, mode='full')
+            # return np.apply_along_axis(convFunc, axis=0, arr=data2D)
+        else:
+            return data2D
 
+    def _crop(self, data3D, strat):
+        if strat == "cropmin":
+            nTimeMin = np.min([data.shape[1] for data in data3D])
+            return np.array([data[:, :nTimeMin] for data in data3D])
+        else:
+            return data3D
 
-def _plot_pca_concat(ax, pca, dataMouseCond, condVal, color):
-    data2DCond = np.hstack(dataMouseCond)
-    x, y = pca.transform(data2DCond.T).T
-    ax.plot(x, y, label=condVal, alpha=0.5, color=color)
+    def _transform(self, data2D):
+        return self.pca.transform(data2D.T).T
 
+    def _plot_pca(self, ax, data, param):
+        dataEff = deepcopy(data)
 
-def _plot_pca_concat_cumul(ax, pca, dataMouseCond, condVal, color):
-    data2DCond = np.hstack(dataMouseCond)
+        # Apply cropping if requested
+        dataEff = self._crop(dataEff, param['cropStrategy'])
 
-    nChannel, nTime = data2DCond.shape
-    for iTime in range(1, nTime):
-        data2DCond[:, iTime] += data2DCond[:, iTime - 1]
+        # Apply concatenation if requested
+        dataEff = self._process_trials(dataEff, param['trialStrategy'])
 
-    x, y = pca.transform(data2DCond.T).T
-    ax.plot(x, y, label=condVal, alpha=0.5, color=color)
+        haveLabel = False
+        for dataTrial in dataEff:
+            dataTrialEff = self._accumulate(dataTrial, param['accStrategy'])
 
+            labelEff = None if haveLabel else param['label']
+            haveLabel = True
+            x, y = self._transform(dataTrialEff)
+            ax.plot(x, y, color=param['color'], label=labelEff, alpha=0.5)
 
-def _plot_pca_bytrial(ax, pca, dataMouseCond, condVal, color):
-    haveLabel = False
-    for dataTrial in dataMouseCond:
-        label = None if haveLabel else condVal
-        haveLabel = True
-        x, y = pca.transform(dataTrial.T).T
-        ax.plot(x, y, color=color, label=label, alpha=0.5)
+    def plot_pca(self, ax, param):
+        iColor = 0
+        cmap = plt.get_cmap("tab10")
+        for performance in ['Correct', 'Mistake']:
+            for direction in ['L', 'R']:
+                queryDictThis = {**self.queryDict, **{'performance' : performance, 'direction' : direction}}
+                data = self._get_data(queryDictThis)
 
+                param['color'] = cmap(iColor)
+                param['label'] = str([direction, performance])
+                self._plot_pca(ax, data, param)
 
-def _plot_pca_bytrial_cumul(ax, pca, dataMouseCond, condVal, color):
-    haveLabel = False
-    for dataTrial in dataMouseCond:
-        nChannel, nTime = dataTrial.shape
-        for iTime in range(1, nTime):
-            dataTrial[:, iTime] += dataTrial[:, iTime - 1]
+                iColor += 1
 
-        label = None if haveLabel else condVal
-        haveLabel = True
-        x, y = pca.transform(dataTrial.T).T
-        ax.plot(x, y, color=color, label=label, alpha=0.5)
+        ax.legend()
+        ax.set_xlabel("PCA1")
+        ax.set_ylabel("PCA2")
+
+    def plot_time_avg_scatter(self, ax):
+        iColor = 0
+        cmap = plt.get_cmap("tab10")
+        for performance in ['Correct', 'Mistake']:
+            for direction in ['L', 'R']:
+                queryDictThis = {**self.queryDict, **{'performance' : performance, 'direction' : direction}}
+                data = self._get_data(queryDictThis)
+
+                data2DCond = np.array([np.mean(d, axis=1) for d in data]).T
+                x, y = self._transform(data2DCond)
+
+                label = str([direction, performance])
+                ax.plot(x, y, '.', label=label, color=cmap(iColor))
+
+                iColor += 1
+
+        ax.legend()
+        ax.set_xlabel("PCA1")
+        ax.set_ylabel("PCA2")
+
+    def plot_pca_vs_time(self, ax, iPCA):
+        iColor = 0
+        cmap = plt.get_cmap("tab10")
+        for performance in ['Correct', 'Mistake']:
+            for direction in ['L', 'R']:
+                queryDictThis = {**self.queryDict, **{'performance' : performance, 'direction' : direction}}
+                data = self._get_data(queryDictThis)
+
+                haveLabel = False
+                label = str([direction, performance])
+                for data2D in data:
+                    x = self._transform(data2D)[iPCA]
+
+                    labelEff = None if haveLabel else label
+                    haveLabel = True
+                    ax.plot(x, label=labelEff, alpha=0.5, color=cmap(iColor))
+
+                iColor += 1
+
+        ax.legend()
+        ax.set_xlabel("timestep")
+        ax.set_ylabel("PCA" + str(iPCA))
