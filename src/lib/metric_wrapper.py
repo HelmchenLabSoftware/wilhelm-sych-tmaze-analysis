@@ -57,7 +57,7 @@ def _metric_single(selector, dataDB, queryDict, metricName, metricCalculator, di
 
 
 def metric_by_interval(dataDB, queryDict, metricName, dimOrderTrg, settings, intervals=None, channelFilter=None):
-    serial = None if "serial" not in settings.keys() else settings["serial"]
+    serial = True if "serial" not in settings.keys() else settings["serial"]
     mc = MetricCalculatorNonUniform(serial=serial, verbose=False)
 
     if intervals is None:
@@ -72,7 +72,7 @@ def metric_by_interval(dataDB, queryDict, metricName, dimOrderTrg, settings, int
 
 
 def metric_by_phase(dataDB, queryDict, metricName, dimOrderTrg, settings, phases=None, channelFilter=None):
-    serial = None if "serial" not in settings.keys() else settings["serial"]
+    serial = True if "serial" not in settings.keys() else settings["serial"]
     mc = MetricCalculatorNonUniform(serial=serial, verbose=False)
 
     if phases is None:
@@ -87,7 +87,7 @@ def metric_by_phase(dataDB, queryDict, metricName, dimOrderTrg, settings, phases
 
 
 def metric_by_selector(dataDB, queryDict, metricName, dimOrderTrg, selector, settings, channelFilter=None):
-    serial = None if "serial" not in settings.keys() else settings["serial"]
+    serial = True if "serial" not in settings.keys() else settings["serial"]
     mc = MetricCalculatorNonUniform(serial=serial, verbose=False)
     return _metric_single(selector, dataDB, queryDict, metricName, mc, dimOrderTrg, settings, channelFilter)
 
@@ -95,7 +95,7 @@ def metric_by_selector(dataDB, queryDict, metricName, dimOrderTrg, selector, set
 # However, we do not stack data from different mice. Instead we stack results from each mouse
 # Mice can have different number or meaning of channels, so stacking may behave unexpectedly or break down
 def metric_by_sweep(dataDB, sweepDF, metricName, dimOrderTrg, selector, settings, channelFilter=None):
-    serial = None if "serial" not in settings.keys() else settings["serial"]
+    serial = True if "serial" not in settings.keys() else settings["serial"]
     mc = MetricCalculatorNonUniform(serial=serial, verbose=False)
 
     dict_drop_value = lambda d, val: {k: v for k, v in d.items() if v != val}

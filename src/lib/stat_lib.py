@@ -1,6 +1,8 @@
 import numpy as np
 
 from scipy.cluster.hierarchy import linkage, fcluster
+from scipy.stats import mannwhitneyu, wilcoxon, binom
+rstest_twosided = lambda x, y : mannwhitneyu(x, y, alternative='two-sided')
 
 
 # Convert discrete PDF into CDF
@@ -32,3 +34,28 @@ def cluster_dist_matrix(M, t):
     # return fcluster(linkageMatrix, nCluster, criterion='maxclust')# - 1  # Original numbering starts at 1 for some reason
     linkageMatrix = linkage(distTril, method='centroid', metric='euclidean')
     return fcluster(linkageMatrix, t, criterion='distance')# - 1  # Original numbering starts at 1 for some reason
+
+
+def test_quantity(dataA, dataB, pval):
+    nTest, nSamplesA = dataA.shape
+    nTest, nSamplesB = dataB.shape
+    
+    test_func = wilcoxon if nSamplesA == nSamplesB else rstest_twosided
+    
+    pValByTest = [test_func(dataA[iTest], dataB[iTest])[1] for iTest in range(nTest)]
+    nTestSignificant, negLogPValPop = test_quantity_from_pval(pValByTest, pval)
+    
+    return pValByTest, nTestSignificant, negLogPValPop
+
+
+def test_quantity_from_pval(pValByTest, pval):
+    # Compute number of datasets with significant differences
+    nTest = len(pValByTest)
+    nTestSignificant = np.sum(np.array(pValByTest) < pval)
+    
+    # Compute probability of seeing at least that many by chance
+    binomPMF = binom.pmf(np.arange(0, nTest), nTest, pval)
+    pValPop = np.sum(binomPMF[nTestSignificant:])
+    negLogPValPop = np.round(-np.log10(pValPop), 1)
+    return nTestSignificant, negLogPValPop
+    
