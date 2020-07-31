@@ -3,6 +3,7 @@ import numpy as np
 from scipy.cluster.hierarchy import linkage, fcluster
 from scipy.stats import mannwhitneyu, wilcoxon, binom
 rstest_twosided = lambda x, y : mannwhitneyu(x, y, alternative='two-sided')
+from mesostat.stat.permtests import difference_test
 
 
 # Convert discrete PDF into CDF
@@ -36,26 +37,34 @@ def cluster_dist_matrix(M, t):
     return fcluster(linkageMatrix, t, criterion='distance')# - 1  # Original numbering starts at 1 for some reason
 
 
-def test_quantity(dataA, dataB, pval):
-    nTest, nSamplesA = dataA.shape
-    nTest, nSamplesB = dataB.shape
+def test_quantity(dataA, dataB, pval, proxyFunc=None, nResample=1000):
+    nObject, nSamplesA = dataA.shape
+    nObject, nSamplesB = dataB.shape
+    pValByTest = np.zeros(nObject)
+
+    # We are testing the values directly via wilcoxon or mann-whitney u test
+    if proxyFunc is None:
+        test_func = wilcoxon if nSamplesA == nSamplesB else rstest_twosided
+        for iObject in range(nObject):
+            pValByTest[iObject] = test_func(dataA[iObject], dataB[iObject])[1]
+
+    # We are testing a function of the values, for which true distribution is unknown
+    # Instead use permutation testing
+    else:
+        for iObject in range(nObject):
+            pless, pmore = difference_test(proxyFunc, dataA[iObject], dataB[iObject], nResample, sampleFunction="permutation")
+            pValByTest[iObject] = np.min([pless, pmore])
+
+    nObjectSignificant = np.sum(pValByTest < pval)
+    negLogPValPop = binom_ccdf(nObject, nObjectSignificant, pval)
     
-    test_func = wilcoxon if nSamplesA == nSamplesB else rstest_twosided
-    
-    pValByTest = [test_func(dataA[iTest], dataB[iTest])[1] for iTest in range(nTest)]
-    nTestSignificant, negLogPValPop = test_quantity_from_pval(pValByTest, pval)
-    
-    return pValByTest, nTestSignificant, negLogPValPop
+    return pValByTest, nObjectSignificant, negLogPValPop
 
 
-def test_quantity_from_pval(pValByTest, pval):
-    # Compute number of datasets with significant differences
-    nTest = len(pValByTest)
-    nTestSignificant = np.sum(np.array(pValByTest) < pval)
-    
-    # Compute probability of seeing at least that many by chance
-    binomPMF = binom.pmf(np.arange(0, nTest), nTest, pval)
-    pValPop = np.sum(binomPMF[nTestSignificant:])
-    negLogPValPop = np.round(-np.log10(pValPop), 1)
-    return nTestSignificant, negLogPValPop
+def binom_ccdf(nObject, nObjectSignificant, pval):
+    # Compute probability of seeing at least nObjectSignificant positive outcomes from nObject by chance
+    # Given that all tests are probability pval of being true by chance
+    binomPMF = binom.pmf(np.arange(0, nObject), nObject, pval)
+    pValPop = np.sum(binomPMF[nObjectSignificant:])
+    return -np.log10(pValPop)
     

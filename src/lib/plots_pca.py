@@ -5,6 +5,9 @@ from copy import deepcopy
 from sklearn.decomposition import PCA
 from scipy.ndimage import gaussian_filter1d
 
+from mesostat.utils.signals import resample_stretch
+from mesostat.stat.permtests import difference_test
+
 '''
     TODO:
     [+] Generic plot by interval
@@ -47,7 +50,7 @@ class PCAPlots:
         if strat == 'cumulative':
             return data2D.cumsum(axis=1)
         elif strat == 'gaussfilter':
-            return gaussian_filter1d(data2D, 2, axis=1, mode="reflect")
+            return gaussian_filter1d(data2D, 3, axis=1, mode="reflect")
             # convFunc = lambda m: np.convolve(m, filt, mode='full')
             # return np.apply_along_axis(convFunc, axis=0, arr=data2D)
         else:
@@ -57,14 +60,16 @@ class PCAPlots:
         if strat == "cropmin":
             nTimeMin = np.min([data.shape[1] for data in data3D])
             return np.array([data[:, :nTimeMin] for data in data3D])
+        elif strat == "stretch":
+            return np.array([[resample_stretch(d, self.nTimeStretch) for d in dataTrial] for dataTrial in data3D])
         else:
             return data3D
 
     def _transform(self, data2D):
         return self.pca.transform(data2D.T).T
 
-    def _plot_pca(self, ax, data, param):
-        dataEff = deepcopy(data)
+    def _preprocess(self, data3D, param):
+        dataEff = deepcopy(data3D)
 
         # Apply cropping if requested
         dataEff = self._crop(dataEff, param['cropStrategy'])
@@ -72,14 +77,14 @@ class PCAPlots:
         # Apply concatenation if requested
         dataEff = self._process_trials(dataEff, param['trialStrategy'])
 
-        haveLabel = False
-        for dataTrial in dataEff:
-            dataTrialEff = self._accumulate(dataTrial, param['accStrategy'])
+        # Apply accumulation if requested
+        dataEff = [self._accumulate(dataTrial, param['accStrategy']) for dataTrial in dataEff]
 
-            labelEff = None if haveLabel else param['label']
-            haveLabel = True
-            x, y = self._transform(dataTrialEff)
-            ax.plot(x, y, color=param['color'], label=labelEff, alpha=0.5)
+        return dataEff
+
+    # This is required to have comparable number of timesteps between different behavioral conditions for distance calculation
+    def set_stretch_timesteps(self, n):
+        self.nTimeStretch = n
 
     def plot_pca(self, ax, param):
         iColor = 0
@@ -89,9 +94,17 @@ class PCAPlots:
                 queryDictThis = {**self.queryDict, **{'performance' : performance, 'direction' : direction}}
                 data = self._get_data(queryDictThis)
 
+                dataEff = self._preprocess(data, param)
+
                 param['color'] = cmap(iColor)
                 param['label'] = str([direction, performance])
-                self._plot_pca(ax, data, param)
+
+                haveLabel = False
+                for dataTrial in dataEff:
+                    labelEff = None if haveLabel else param['label']
+                    haveLabel = True
+                    x, y = self._transform(dataTrial)
+                    ax.plot(x, y, color=param['color'], label=labelEff, alpha=0.5)
 
                 iColor += 1
 
@@ -141,3 +154,44 @@ class PCAPlots:
         ax.legend()
         ax.set_xlabel("timestep")
         ax.set_ylabel("PCA" + str(iPCA))
+
+    def plot_distances(self, ax, param):
+        '''
+        Plan:
+            * Align data (crop or stretch)
+            * Consider 3 binary tests (Dir(Corr), Perf(L), Perf(R))
+            * Calc all-cell trial-average euclidean distance as function if timestep, plot
+            * Do permutation test over labels, get pval for each timestep, use a colormap for above
+        '''
+
+        # Avg over trials -> Norm Dist over neurons
+        dist_func = lambda a, b: np.linalg.norm(np.mean(a, axis=0) - np.mean(b, axis=0))  #/ a.shape[1]
+
+        tests = [
+            {"condition": "direction", "performance" : "Correct"},
+            {"condition": "performance", "direction": "L"},
+            {"condition": "performance", "direction": "R"}
+        ]
+
+        for iTest, test in enumerate(tests):
+            if test["condition"] == "direction":
+                queryDictExtraA = {'performance': test["performance"], 'direction': 'L'}
+                queryDictExtraB = {'performance': test["performance"], 'direction': 'R'}
+            else:
+                queryDictExtraA = {'direction': test["direction"], 'performance': 'Correct'}
+                queryDictExtraB = {'direction': test["direction"], 'performance': 'Mistake'}
+
+            dataA = self._get_data({**self.queryDict, **queryDictExtraA})
+            dataB = self._get_data({**self.queryDict, **queryDictExtraB})
+
+            dataAEff = np.array(self._preprocess(dataA, param)).transpose((2, 0, 1))
+            dataBEff = np.array(self._preprocess(dataB, param)).transpose((2, 0, 1))
+
+            distTrue = np.array([dist_func(a, b) for a, b in zip(dataAEff, dataBEff)])
+            distPval = [difference_test(dist_func, a, b, 1000, sampleFunction="permutation") for a, b in zip(dataAEff, dataBEff)]
+
+            ax.plot(distTrue + iTest, label=str("-".join(list(test.values()))))
+
+        ax.legend()
+
+
