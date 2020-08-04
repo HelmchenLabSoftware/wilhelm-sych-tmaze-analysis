@@ -5,9 +5,9 @@ import seaborn as sns
 from scipy import interpolate
 from scipy.stats import mannwhitneyu, wilcoxon
 from IPython.display import display
-from copy import deepcopy
 from statannot import add_stat_annotation
 
+from mesostat.utils.plotting import imshowAddFakeColorBar
 from mesostat.utils.pandas_helper import outer_product_df
 from mesostat.stat.machinelearning import binary_classifier
 
@@ -57,6 +57,25 @@ def _test_signed_rank_nan_aware(data1, data2):
         logPval = np.log10(wilcoxon(data1nonan, data2nonan)[1])
     nNoNan = np.sum(~nanIdx)
     return logPval, nNoNan
+
+
+# Plot y(x) with color given by z(x)
+def plot_coloured_1D(ax, x, y, z, cmap='jet', vmin=None, vmax=None, haveColorBar=False):
+    nP = len(x)
+
+    vminEff = np.min(z) if vmin is None else vmin
+    vmaxEff = np.max(z) if vmax is None else vmax
+
+    zNorm = (z - vminEff) / (vmaxEff - vminEff)
+    zNorm = np.clip(zNorm, 0, 1)
+
+    cmapFunc = plt.get_cmap(cmap)
+    for i in range(1, nP):
+        # ax.plot(x[i - 1:i + 1], y[i - 1:i + 1], color=(zNorm[i], 0, 0))
+        ax.plot(x[i - 1:i + 1], y[i - 1:i + 1], color=cmapFunc(zNorm[i]))
+
+    if haveColorBar:
+        imshowAddFakeColorBar(ax.figure, ax, cmap=cmap, vmin=vmin, vmax=vmax)
 
 
 def plot_labeled_violins(ax, dataLst, dataLabels, paramName, metricName, joinMeans=True, haveLog=False, sigTestPairs=None, printLogP=False):

@@ -8,6 +8,8 @@ from scipy.ndimage import gaussian_filter1d
 from mesostat.utils.signals import resample_stretch
 from mesostat.stat.permtests import difference_test
 
+from src.lib.plots_lib import plot_coloured_1D
+
 '''
     TODO:
     [+] Generic plot by interval
@@ -188,10 +190,15 @@ class PCAPlots:
             dataBEff = np.array(self._preprocess(dataB, param)).transpose((2, 0, 1))
 
             distTrue = np.array([dist_func(a, b) for a, b in zip(dataAEff, dataBEff)])
-            distPval = [difference_test(dist_func, a, b, 1000, sampleFunction="permutation") for a, b in zip(dataAEff, dataBEff)]
+            distPval = [difference_test(dist_func, a, b, 1000, sampleFunction="permutation")[1] for a, b in zip(dataAEff, dataBEff)]
+            distNegLogPval = np.array([-np.log10(p) for p in distPval])
 
-            ax.plot(distTrue + iTest, label=str("-".join(list(test.values()))))
+            label = str("-".join(list(test.values())))
+            # ax.plot(distTrue + iTest, label=label)
 
-        ax.legend()
+            x = np.arange(len(distTrue))
+            plot_coloured_1D(ax, x, distTrue + iTest, distNegLogPval, vmin=0, vmax=4, haveColorBar=(iTest==0))
+            ax.text(len(distTrue) / 2, iTest, label, ha='left', wrap=True)
+
 
 
