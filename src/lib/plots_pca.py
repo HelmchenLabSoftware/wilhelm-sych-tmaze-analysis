@@ -19,13 +19,18 @@ from src.lib.plots_lib import plot_coloured_1D
 '''
 
 class PCAPlots:
-    def __init__(self, dataDB, selector, queryDict):
+    def __init__(self, dataDB, selector, queryDict, channelFilterMouse=None):
         self.dataDB = dataDB
         self.selector = selector
         self.queryDict = queryDict
 
         data3DAll = self._get_data(queryDict)
         data2DAll = np.hstack(data3DAll)
+
+        if channelFilterMouse is not None:
+            data2DAll = data2DAll[channelFilterMouse]
+
+        print('yolo', data2DAll.shape)
 
         self.pca = PCA(n_components=2)
         self.pca.fit(data2DAll.T)

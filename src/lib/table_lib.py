@@ -17,7 +17,7 @@ def _table_multiple_tests(sweepDF, metricValuesDict, multiplexKey):
     for idx, row in sweepDF.iterrows():
         # Print means for each condition
         for condVal in condValues:
-            rezDF.at[idx, "mu("+condVal+")"] = np.nanmean(metricValuesDict[condVal][idx])
+            rezDF.at[idx, "mu("+condVal+")"] = np.mean(metricValuesDict[condVal][idx])
 
         # Perform tests for each pair of conditions
         nNoNanLst = []
@@ -65,7 +65,7 @@ def _consolidate_multiplexed_pvalues(testDF, sweepDF, multiplexKey):
                     pValTot = combine_pvalues(pVals)[1]
                     filterDict[queryCol] = -np.log10(pValTot)
                 elif "mu(" in queryCol:
-                    filterDict[queryCol] = -np.mean(vals)
+                    filterDict[queryCol] = np.mean(vals)
                 else:
                     # If this is not a tested column, all values there should be equal, so test and take the one
                     if len(vals) != 1:
@@ -91,7 +91,7 @@ def _outer_product_multiplexed(dataDB, sweepDict, multiplexKey):
             raise ValueError("Unexpected multiplexKey", multiplexKey)
 
 
-def table_discriminate_behavior(dataDB, selector, condition, sweepDict, metricName, trgDimOrder="r", settings=None, multiplexKey=None):
+def table_discriminate_behavior(dataDB, selector, condition, sweepDict, metricName, trgDimOrder="r", settings=None, multiplexKey=None, channelFilter=None):
     if settings == None:
         settings = dict()
     sweepDF = _outer_product_multiplexed(dataDB, sweepDict, multiplexKey)
@@ -102,7 +102,7 @@ def table_discriminate_behavior(dataDB, selector, condition, sweepDict, metricNa
         sweepDFThis = sweepDF.copy()
         sweepDFThis[condition] = condVal
 
-        rez = metric_by_sweep(dataDB, sweepDFThis, metricName, trgDimOrder, selector, settings)
+        rez = metric_by_sweep(dataDB, sweepDFThis, metricName, trgDimOrder, selector, settings, channelFilter=channelFilter)
 
         # If metric is not scalar, just average over all values
         ndim = rez[0].ndim
