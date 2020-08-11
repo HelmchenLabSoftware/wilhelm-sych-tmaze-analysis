@@ -51,7 +51,6 @@ class BehaviouralNeuronalDatabase :
         self._find_parse_data_files('deconv', param["root_path_deconv"])
         self._find_parse_behaviour_files('behavior', param["root_path_dff"])
 
-
     def phase_to_interval(self, phase, performance):
         thisMap = self.metaDataFrames['interval_maps'][performance]
 
@@ -70,15 +69,12 @@ class BehaviouralNeuronalDatabase :
 
         return idxStart, idxEnd
 
-
     # Remove non-digits from a string
     def _drop_non_digit(self, s):
         return ''.join([i for i in s if i.isdigit()])
 
-
     def _extract_high_activity(self, data, p):
         return np.array([crop_quantile(data[:, i], p) for i in range(data.shape[1])]).T
-
 
     def _find_parse_data_files(self, metaKey, rootPath):
         dataWalk = getfiles_walk(rootPath, [".mat", "AcceptedCells"])
@@ -96,7 +92,6 @@ class BehaviouralNeuronalDatabase :
         self.mice.update(set(self.metaDataFrames[metaKey]['mousename']))
         self.sessions.update(set(self.metaDataFrames[metaKey]['session']))
 
-
     def _find_parse_behaviour_files(self, metaKey, rootPath):
         behavWalk = getfiles_walk(rootPath, [".mat", "Behavior"])
 
@@ -109,7 +104,6 @@ class BehaviouralNeuronalDatabase :
             session = mousename + '_' + datestr
             pathname = join(path, name)
             self.metaDataFrames[metaKey] = pandas_helper.add_list_as_row(self.metaDataFrames[metaKey], [mousename, datestr, session, pathname])
-
 
     def read_neuro_files(self):
         if 'dff' in self.metaDataFrames.keys():
@@ -140,7 +134,6 @@ class BehaviouralNeuronalDatabase :
                 progBar.value += 1
         else:
             print("No DECONV files loaded, skipping reading part")
-
 
     def read_behavior_files(self):
         FPS_TTL = 2000.0         # Microelectronics sampling timescale
@@ -197,7 +190,6 @@ class BehaviouralNeuronalDatabase :
         else:
             print("No Neuro files loaded, skipping reading part")
 
-
     def get_nchannel(self, mousename, datatype):
         dataFrameKey = datatype if datatype=="deconv" else "dff"
         rows = self.get_rows(dataFrameKey, {"mousename" : mousename})
@@ -218,10 +210,8 @@ class BehaviouralNeuronalDatabase :
         assert len(mice) == 1, "Each session should be related to exactly one mouse"
         return mice[0]
 
-
     def get_rows(self, metaFrameName, query):
         return pandas_helper.get_rows_colvals(self.metaDataFrames[metaFrameName], query)
-
 
     def get_data_session_interval_fromindex(self, idxNeuro, idxBehavior, startState, endState, dataType='raw'):
         if (idxNeuro is None) or (idxBehavior is None):
@@ -234,7 +224,6 @@ class BehaviouralNeuronalDatabase :
         endFrameIdxs = framesArrThis[:, endState]
 
         return [np.copy(dataNeuroThis[start:end].T) for start, end in zip(startFrameIdxs, endFrameIdxs)]
-
 
     def get_data_from_interval(self, startState, endState, queryDict):
         rez = []
@@ -265,7 +254,6 @@ class BehaviouralNeuronalDatabase :
 
         return rez
 
-
     def get_data_from_phase(self, phase, queryDict):
         if "performance" in queryDict.keys():
             startState, endState = self.phase_to_interval(phase, queryDict["performance"])
@@ -288,7 +276,6 @@ class BehaviouralNeuronalDatabase :
             return self.get_data_from_phase(selector["phase"], queryDict)
         else:
             raise ValueError("Unexpected selector", selector)
-
 
     def get_phase_bounding_lines(self, performance):
         phases = self.phases[performance]
