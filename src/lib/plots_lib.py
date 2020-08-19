@@ -132,13 +132,13 @@ def plot_stretched_intervals(ax, dataDB, queryDict, idxStart, idxEnd, nInterp=10
 #         ax2[1].plot(mu, label=str(iCluster))
 
 
-def clustering_plots_chill(ax, metricByConn, clustering):
-    clusterSortIdxs = np.argsort(clustering)  # Node indices so that clusters appear consecutive
+def clustering_imshow_overplot_lines(ax, clustering, haveH=True, haveV=True):
     nCluster = np.max(clustering)
     nodePerClusterCumul = [np.sum(clustering <= j + 1) for j in range(nCluster)]
 
     # Plot orderability metric matrix, and cluster separators with red lines
-    ax.imshow(metricByConn[clusterSortIdxs][:, clusterSortIdxs], vmin=0, vmax=1)
     for clusterSep in nodePerClusterCumul:
-        ax.axvline(x=clusterSep - 0.5, color='r', alpha=0.5)
-        ax.axhline(y=clusterSep - 0.5, color='r', alpha=0.5)
+        if haveV:
+            ax.axvline(x=clusterSep - 0.5, color='r', alpha=0.5)
+        if haveH:
+            ax.axhline(y=clusterSep - 0.5, color='r', alpha=0.5)
