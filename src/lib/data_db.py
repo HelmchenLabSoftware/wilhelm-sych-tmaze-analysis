@@ -203,6 +203,9 @@ class BehaviouralNeuronalDatabase :
         else:
             return len(self.get_rows(dataFrameKey, {"mousename": mousename}))
 
+    def get_intervals(self, performance):
+        return np.arange(len(self.metaDataFrames['interval_maps'][performance]) - 1).astype(int)
+
     def get_mouse_from_session(self, session, datatype):
         dataFrameKey = datatype if datatype == "deconv" else "dff"
         rows = self.get_rows(dataFrameKey, {"session": session})

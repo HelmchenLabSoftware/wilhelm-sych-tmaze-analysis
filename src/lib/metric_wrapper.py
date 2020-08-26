@@ -16,6 +16,9 @@ def _metric_single(selector, dataDB, queryDict, metricName, metricCalculator, di
         raise ValueError("Can't iterate over channels if more than 1 mouse selected")
 
     dataLst = dataDB.get_data_from_selector(selector, queryDict)
+    if "dropShortTrialsTHR" in settings.keys():
+        dataLst = [d for d in dataLst if d.shape[1] >= settings["dropShortTrialsTHR"]]
+
     if len(dataLst) == 0:
         return None
     else:
@@ -61,7 +64,10 @@ def metric_by_interval(dataDB, queryDict, metricName, dimOrderTrg, settings, int
     mc = MetricCalculatorNonUniform(serial=serial, verbose=False)
 
     if intervals is None:
-        intervals = range(len(dataDB.metaDataFrames['interval_maps'][queryDict["performance"]]) - 1)
+        if "performance" not in queryDict:
+            raise ValueError("Can't sweep over all intervals if performance is not specified. Intervals mismatch between Correct/Mistake")
+
+        intervals = dataDB.get_intervals(queryDict['performance'])
 
     metricValues = []   # [nInterv, nDataPoint]
     for iInterv in intervals:
@@ -90,6 +96,14 @@ def metric_by_selector(dataDB, queryDict, metricName, dimOrderTrg, selector, set
     serial = True if "serial" not in settings.keys() else settings["serial"]
     mc = MetricCalculatorNonUniform(serial=serial, verbose=False)
     return _metric_single(selector, dataDB, queryDict, metricName, mc, dimOrderTrg, settings, channelFilter)
+
+
+def metric_by_selector_all(dataDB, queryDict, phaseType, metricName, dimOrderTrg, settings, ranges=None, channelFilter=None):
+    if phaseType == 'interval':
+        return metric_by_interval(dataDB, queryDict, metricName, dimOrderTrg, settings, intervals=ranges, channelFilter=channelFilter)
+    else:
+        return metric_by_phase(dataDB, queryDict, metricName, dimOrderTrg, settings, phases=ranges, channelFilter=channelFilter)
+
 
 # A sweep over query parameters. If mice are not specified, then we iterate over all mice
 # However, we do not stack data from different mice. Instead we stack results from each mouse
