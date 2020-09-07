@@ -6,7 +6,7 @@ from scipy.stats import combine_pvalues
 from mesostat.utils.pandas_helper import outer_product_df, get_rows_colvals
 from mesostat.stat.machinelearning import binary_classifier
 
-from src.lib.metric_wrapper import metric_by_sweep, metric_by_phase, metric_by_selector
+from src.lib.metric_wrapper import metric_by_sweep, metric_by_selector
 from src.lib.stat_lib import test_rank_wrapper
 
 

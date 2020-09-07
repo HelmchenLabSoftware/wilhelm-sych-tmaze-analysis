@@ -24,26 +24,15 @@ class PCAPlots:
         self.selector = selector
         self.queryDict = queryDict
 
-        data3DAll = self._get_data(queryDict)
+        data3DAll = self.dataDB.get_data_from_selector(self.selector, queryDict)
         data2DAll = np.hstack(data3DAll)
 
         if channelFilterMouse is not None:
             data2DAll = data2DAll[channelFilterMouse]
 
-        print('yolo', data2DAll.shape)
-
         self.pca = PCA(n_components=2)
         self.pca.fit(data2DAll.T)
 
-
-    def _get_data(self, queryDict):
-        if "phase" in self.selector.keys():
-            return self.dataDB.get_data_from_phase(self.selector["phase"], queryDict)
-        elif "interval" in self.selector.keys():
-            interval = self.selector["interval"]
-            return self.dataDB.get_data_from_interval(interval, interval+1, queryDict)
-        else:
-            raise ValueError("Unexpected selector", self.selector)
 
     def _process_trials(self, data3D, strat):
         if strat == 'concat':
@@ -99,7 +88,7 @@ class PCAPlots:
         for performance in ['Correct', 'Mistake']:
             for direction in ['L', 'R']:
                 queryDictThis = {**self.queryDict, **{'performance' : performance, 'direction' : direction}}
-                data = self._get_data(queryDictThis)
+                data = self.dataDB.get_data_from_selector(self.selector, queryDictThis)
 
                 dataEff = self._preprocess(data, param)
 
@@ -125,7 +114,7 @@ class PCAPlots:
         for performance in ['Correct', 'Mistake']:
             for direction in ['L', 'R']:
                 queryDictThis = {**self.queryDict, **{'performance' : performance, 'direction' : direction}}
-                data = self._get_data(queryDictThis)
+                data = self.dataDB.get_data_from_selector(self.selector, queryDictThis)
 
                 data2DCond = np.array([np.mean(d, axis=1) for d in data]).T
                 x, y = self._transform(data2DCond)
@@ -145,7 +134,7 @@ class PCAPlots:
         for performance in ['Correct', 'Mistake']:
             for direction in ['L', 'R']:
                 queryDictThis = {**self.queryDict, **{'performance' : performance, 'direction' : direction}}
-                data = self._get_data(queryDictThis)
+                data = self.dataDB.get_data_from_selector(self.selector, queryDictThis)
 
                 haveLabel = False
                 label = str([direction, performance])
@@ -188,8 +177,8 @@ class PCAPlots:
                 queryDictExtraA = {'direction': test["direction"], 'performance': 'Correct'}
                 queryDictExtraB = {'direction': test["direction"], 'performance': 'Mistake'}
 
-            dataA = self._get_data({**self.queryDict, **queryDictExtraA})
-            dataB = self._get_data({**self.queryDict, **queryDictExtraB})
+            dataA = self.dataDB.get_data_from_selector(self.selector, {**self.queryDict, **queryDictExtraA})
+            dataB = self.dataDB.get_data_from_selector(self.selector, {**self.queryDict, **queryDictExtraB})
 
             dataAEff = np.array(self._preprocess(dataA, param)).transpose((2, 0, 1))
             dataBEff = np.array(self._preprocess(dataB, param)).transpose((2, 0, 1))

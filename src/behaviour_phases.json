@@ -1,41 +1,88 @@
-
 {
-  "Correct" : [
-    [1, "Encoding", "Start"],
-    [2, "Encoding", "T-junction"],
-    [3, "Encoding", "First Lick"],
-    [4, "Encoding", "Delivery of water"],
-    [5, "Encoding", "Last lick"],
-    [6, "Maintenance", "T-junction"],
-    [7, "Maintenance", "roi corridor"],
-    [8, "Maintenance", "End Sample run"],
-    [9, "Retrieval", "Start Choice run"],
-    [10, "Retrieval", "Turn before T-junction"],
-    [11, "Retrieval", "After T-junction"],
-    [12, "Retrieval", "licking right"],
-    [13, "Retrieval", "licking right 2"],
-    [14, "Retrieval", "free run"],
-    [15, "Waiting", "turn back"],
-    [16, "Waiting", "roi corridor"],
-    [17, "Waiting", "roi start"],
-    [18, "Waiting", "End+10s"]
-  ],
+  "Intervals" : {
+    "Correct" : [
+      [1, "Start"],
+      [2, "T-junction"],
+      [3, "First Lick"],
+      [4, "Delivery of water"],
+      [5, "Last lick"],
+      [6, "T-junction"],
+      [7, "roi corridor"],
+      [8, "End Sample run"],
+      [9, "Start Choice run"],
+      [10, "Turn before T-junction"],
+      [11, "After T-junction"],
+      [12, "licking right"],
+      [13, "licking right 2"],
+      [14, "free run"],
+      [15, "turn back"],
+      [16, "roi corridor"],
+      [17, "roi start"],
+      [18, "End+10s"]
+    ],
 
-  "Mistake" : [
-    [1, "Encoding", "Start"],
-    [2, "Encoding", "T-junction"],
-    [3, "Encoding", "First Lick"],
-    [4, "Encoding", "Delivery of water"],
-    [5, "Encoding", "Last lick"],
-    [6, "Maintenance", "T-junction"],
-    [7, "Maintenance", "roi corridor"],
-    [8, "Maintenance", "End Sample run"],
-    [9, "Retrieval", "Start Choice run"],
-    [10, "Retrieval", "Turn before T-junction"],
-    [11, "Retrieval", "After T-junction"],
-    [12, "Waiting", "turn back"],
-    [13, "Waiting", "roi corridor"],
-    [14, "Waiting", "roi start"],
-    [15, "Waiting", "End+10s"]
-  ]
+    "Mistake" : [
+      [1, "Start"],
+      [2, "T-junction"],
+      [3, "First Lick"],
+      [4, "Delivery of water"],
+      [5, "Last lick"],
+      [6, "T-junction"],
+      [7, "roi corridor"],
+      [8, "End Sample run"],
+      [9, "Start Choice run"],
+      [10, "Turn before T-junction"],
+      [11, "After T-junction"],
+      [12, "turn back"],
+      [13, "roi corridor"],
+      [14, "roi start"],
+      [15, "End+10s"]
+    ]
+  },
+
+  "Phases" : {
+    "Correct" : {
+      "Encoding"    : [1, 6],
+      "Maintenance" : [6, 9],
+      "Retrieval"   : [9, 15],
+      "Waiting"     : [15, 18]
+    },
+
+    "Mistake" : {
+      "Encoding"    : [1, 6],
+      "Maintenance" : [6, 9],
+      "Retrieval"   : [9, 12],
+      "Waiting"     : [12, 15]
+    }
+  },
+
+  "Semiphases" : {
+    "Correct" : {
+      "E1"    : [1, 2],
+      "E2"    : [2, 3],
+      "E3"    : [3, 5],
+      "E4"    : [5, 6],
+      "M1"    : [6, 8],
+      "M2"    : [8, 9],
+      "R1"    : [9, 10],
+      "R2"    : [10, 12],
+      "R3"    : [12, 14],
+      "R4"    : [14, 15],
+      "W1"    : [15, 17],
+      "W2"    : [17, 18]
+    },
+
+    "Mistake" : {
+      "E1"    : [1, 2],
+      "E2"    : [2, 3],
+      "E3"    : [3, 5],
+      "E4"    : [5, 6],
+      "M1"    : [6, 8],
+      "M2"    : [8, 9],
+      "R1"    : [9, 10],
+      "R2"    : [10, 12],
+      "W1"    : [12, 14],
+      "W2"    : [14, 15]
+    }
+  }
 }

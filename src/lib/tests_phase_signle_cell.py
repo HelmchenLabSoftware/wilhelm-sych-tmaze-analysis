@@ -1,7 +1,7 @@
 import numpy as np
 from scipy.stats import mannwhitneyu
 
-from src.lib.metric_wrapper import metric_by_interval, metric_by_phase, metric_by_selector, metric_by_selector_all
+from src.lib.metric_wrapper import metric_by_selector_all
 
 
 # For each interval, perform rank-sum test against all other intervals
@@ -18,9 +18,10 @@ def _test_pair(dataA, dataB, alternative):
 
 # For each cell and each interval determine a pvalue of a rank-sum test against all other intervals
 # Return array of shape [nChannel, nInterval]
-def test_inverse_all_selectors(dataDB, queryDict, phaseType, metricName='mean', alternative="greater", ranges=None, settings=None):
+def test_inverse_all_selectors(dataDB, queryDict, phaseType, metricName='mean', alternative="greater", ranges=None, haveWaiting=True, settings=None):
     settings = {} if settings is None else settings
-    rez3D = metric_by_selector_all(dataDB, queryDict, phaseType, metricName, 'pr', settings, ranges=ranges)
+
+    rez3D = metric_by_selector_all(dataDB, queryDict, phaseType, metricName, 'pr', settings, ranges=ranges, haveWaiting=haveWaiting)
 
     nInterval, nChannel, nTrial = rez3D.shape
     pVals2D = []

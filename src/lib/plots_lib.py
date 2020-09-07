@@ -10,6 +10,7 @@ from statannot import add_stat_annotation
 from mesostat.utils.plotting import imshowAddFakeColorBar
 from src.lib.stat_lib import test_rank_sum_nan_aware, test_signed_rank_nan_aware
 
+
 # Plot y(x) with color given by z(x)
 def plot_coloured_1D(ax, x, y, z, cmap='jet', vmin=None, vmax=None, haveColorBar=False):
     nP = len(x)
@@ -41,7 +42,7 @@ def plot_labeled_violins(ax, dataLst, dataLabels, paramName, metricName, joinMea
 
     sns.violinplot(ax=ax, data=df, x=paramName, y=metricName, cut=0)
     if sigTestPairs is not None:
-        labelPairs = [(dataLabels[i], dataLabels[j]) for i,j in sigTestPairs]
+        labelPairs = [(dataLabels[i], dataLabels[j]) for i, j in sigTestPairs]
         dataSizes = [(len(df[df[paramName] == l1]), len(df[df[paramName] == l2])) for l1, l2 in labelPairs]
         dataTuples = [(df[df[paramName] == l1][metricName], df[df[paramName] == l2][metricName]) for l1, l2 in labelPairs]
 
@@ -80,11 +81,12 @@ def plot_bar_bounds(ax, bounds):
         ax.axvline(x=vline-0.5, color='r', linestyle='--')
 
 
-def plot_stretched_intervals(ax, dataDB, queryDict, idxStart, idxEnd, nInterp=100):
+def plot_stretched_intervals(ax, dataDB, queryDict, intervalStart, intervalEnd, nInterp=100):
 
     rezLst = []  # [nInterv, nDataPoint]
     timesLst = []
-    for iInterv in range(idxStart, idxEnd):
+    intervals = list(range(intervalStart, intervalEnd+1))
+    for iInterv in intervals:
         dataLst = dataDB.get_data_from_interval(iInterv, iInterv + 1, queryDict)
         rez = []
         times = []
@@ -96,40 +98,19 @@ def plot_stretched_intervals(ax, dataDB, queryDict, idxStart, idxEnd, nInterp=10
         timesLst += [times]
 
 
-    nInterv = idxEnd-idxStart
+    nInterv = len(intervals)
     nTrial = len(timesLst[0])
 
     timesArr = [np.hstack([timesLst[iInterv][iTrial] for iInterv in range(nInterv)]) for iTrial in range(nTrial)]
     rezArr = [np.hstack([rezLst[iInterv][iTrial] for iInterv in range(nInterv)]) for iTrial in range(nTrial)]
 
-    xRez = np.linspace(idxStart, idxEnd, nInterp)
+    xRez = np.linspace(intervalStart, intervalEnd, nInterp)
     yLst = [interpolate.interp1d(x, y, kind="linear")(xRez) for x,y in zip(timesArr, rezArr)]
     muY = np.mean(yLst, axis=0)
     stdY = np.std(yLst, axis=0)
 
     ax.fill_between(xRez, muY-stdY, muY+stdY)
     ax.plot(xRez, muY, color='blue')
-
-
-# def clustering_plots(matRescaled, metricByConn, clustering):
-#     nTime = matRescaled.shape[2]
-#     clusterSortIdxs = np.argsort(clustering)  # Node indices so that clusters appear consecutive
-#     nCluster = np.max(clustering)
-#     nodePerClusterCumul = [np.sum(clustering <= j + 1) for j in range(nCluster)]
-#
-#     # Plot orderability metric matrix, and cluster separators with red lines
-#     fig2, ax2 = plt.subplots(ncols=2, figsize=(8, 4))
-#     ax2[0].imshow(metricByConn[clusterSortIdxs][:, clusterSortIdxs])
-#     for clusterSep in nodePerClusterCumul:
-#         ax2[0].axvline(x=clusterSep - 0.5, color='r', alpha=0.5)
-#         ax2[0].axhline(y=clusterSep - 0.5, color='r', alpha=0.5)
-#
-#     # Plot average rescaled activity for each cluster
-#     for iCluster in range(nCluster):
-#         mu = np.mean(matRescaled[clustering == iCluster], axis=(0, 1)) * 50 + iCluster
-#         std = np.std(matRescaled[clustering == iCluster], axis=(0, 1)) * 50
-#         ax2[1].fill_between(np.arange(nTime), mu - std, mu + std, alpha=0.3)
-#         ax2[1].plot(mu, label=str(iCluster))
 
 
 def clustering_imshow_overplot_lines(ax, clustering, haveH=True, haveV=True):

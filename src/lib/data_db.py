@@ -29,20 +29,7 @@ class BehaviouralNeuronalDatabase :
         ##################################
         # Read Phase Description
         ##################################
-        libPath = dirname(__file__)
-        srcPath = dirname(libPath)
-        phasesFilePath = join(srcPath, 'behaviour_phases.json')
-        
-        with open(phasesFilePath, 'r') as f:
-            tmp = json.load(f)
-            self.metaDataFrames['interval_maps'] = {
-                "Correct" : pd.DataFrame(tmp['Correct'], columns=['index', 'phase', 'label']),
-                "Mistake" : pd.DataFrame(tmp['Mistake'], columns=['index', 'phase', 'label'])
-            }
-            self.phases = {
-                "Correct" : list(OrderedDict.fromkeys(self.metaDataFrames['interval_maps']["Correct"]["phase"]).keys()),
-                "Mistake" : list(OrderedDict.fromkeys(self.metaDataFrames['interval_maps']["Mistake"]["phase"]).keys())
-            }
+        self.read_interval_maps()
 
         ##################################
         # Find and parse data files
@@ -51,23 +38,23 @@ class BehaviouralNeuronalDatabase :
         self._find_parse_data_files('deconv', param["root_path_deconv"])
         self._find_parse_behaviour_files('behavior', param["root_path_dff"])
 
-    def phase_to_interval(self, phase, performance):
-        thisMap = self.metaDataFrames['interval_maps'][performance]
-
-        if phase is None:  # Equivalently all phases
-            thisPhaseMap = thisMap
-        else:
-            thisPhaseMap = thisMap[thisMap['phase'] == phase]
-
-        nStates = len(thisMap)
-        idxStart = min(thisPhaseMap.index)
-
-        # Note 1: upper bound is inclusive
-        # Note 2: phase next to each state denotes interval starting at that state and ending at next state
-        # Note 3: phase indicator at last state is effectively useless, because trials stops at that state
-        idxEnd = np.min([nStates-1, max(thisPhaseMap.index) + 1])
-
-        return idxStart, idxEnd
+    # def phase_to_interval(self, phase, performance):
+    #     thisMap = self.metaDataFrames['interval_maps'][performance]
+    #
+    #     if phase is None:  # Equivalently all phases
+    #         thisPhaseMap = thisMap
+    #     else:
+    #         thisPhaseMap = thisMap[thisMap['phase'] == phase]
+    #
+    #     nStates = len(thisMap)
+    #     idxStart = min(thisPhaseMap.index)
+    #
+    #     # Note 1: upper bound is inclusive
+    #     # Note 2: phase next to each state denotes interval starting at that state and ending at next state
+    #     # Note 3: phase indicator at last state is effectively useless, because trials stops at that state
+    #     idxEnd = np.min([nStates-1, max(thisPhaseMap.index) + 1])
+    #
+    #     return idxStart, idxEnd
 
     # Remove non-digits from a string
     def _drop_non_digit(self, s):
@@ -104,6 +91,21 @@ class BehaviouralNeuronalDatabase :
             session = mousename + '_' + datestr
             pathname = join(path, name)
             self.metaDataFrames[metaKey] = pandas_helper.add_list_as_row(self.metaDataFrames[metaKey], [mousename, datestr, session, pathname])
+
+    def read_interval_maps(self):
+        libPath = dirname(__file__)
+        srcPath = dirname(libPath)
+        phasesFilePath = join(srcPath, 'behaviour_phases.json')
+
+        with open(phasesFilePath, 'r') as f:
+            jFile = json.load(f)
+            self.intervalsDict = {
+                "Correct": {idx: label for idx, label in jFile['Intervals']['Correct']},
+                "Mistake": {idx: label for idx, label in jFile['Intervals']['Mistake']},
+            }
+
+            self.phasesDict = jFile['Phases']
+            self.semiphasesDict = jFile['Semiphases']
 
     def read_neuro_files(self):
         if 'dff' in self.metaDataFrames.keys():
@@ -169,7 +171,7 @@ class BehaviouralNeuronalDatabase :
 
                             nTrial, nEvent = timeIntervals.shape
 
-                            if nEvent != len(self.metaDataFrames['interval_maps'][perf]):
+                            if nEvent != len(self.intervalsDict[perf]):
                                 raise ValueError("Unexpected", nEvent)
 
                             # Align raw calcium time intervals to the first pulse
@@ -203,8 +205,31 @@ class BehaviouralNeuronalDatabase :
         else:
             return len(self.get_rows(dataFrameKey, {"mousename": mousename}))
 
-    def get_intervals(self, performance):
-        return np.arange(len(self.metaDataFrames['interval_maps'][performance]) - 1).astype(int)
+    def get_directions(self):
+        return list(sorted(set(self.metaDataFrames['behaviorStates']['direction'])))
+
+    def get_performances(self):
+        return list(sorted(set(self.metaDataFrames['behaviorStates']['performance'])))
+
+    def get_phasetype_keys(self, phaseType, performance):
+        if phaseType == 'interval':
+            # TODO: Note that there are 1 less intervals than interval flags. Make flags and intervals distinct
+            return np.array(list(self.intervalsDict[performance].keys()), dtype=int)[:-1]
+        elif phaseType == 'phase':
+            return list(self.phasesDict[performance].keys())
+        elif phaseType == 'semiphase':
+            return list(self.semiphasesDict[performance].keys())
+        else:
+            raise ValueError("Unexpected phase type", phaseType)
+
+    def get_phasetype_keys_from_phase(self, phase, phaseType, performance):
+        if phaseType == 'interval':
+            return list(range(*self.phasesDict[performance][phase]))
+        elif phaseType == 'semiphase':
+            semiphaseKey = phase[0]  # First letter of the phase word
+            return [key for key in self.semiphasesDict[performance].keys() if semiphaseKey in key]
+        else:
+            raise ValueError('Unexpected phaseType', phaseType)
 
     def get_mouse_from_session(self, session, datatype):
         dataFrameKey = datatype if datatype == "deconv" else "dff"
@@ -216,19 +241,22 @@ class BehaviouralNeuronalDatabase :
     def get_rows(self, metaFrameName, query):
         return pandas_helper.get_rows_colvals(self.metaDataFrames[metaFrameName], query)
 
-    def get_data_session_interval_fromindex(self, idxNeuro, idxBehavior, startState, endState, dataType='raw'):
+    def get_data_session_interval_fromindex(self, idxNeuro, idxBehavior, intervalStart, intervalEnd, dataType='raw'):
         if (idxNeuro is None) or (idxBehavior is None):
             raise ValueError("Unexpected indices", idxNeuro, idxBehavior)
 
         dataNeuroThis = self.dataNeuronal[dataType][idxNeuro]
         framesArrThis = self.behaviorStateFrames[idxBehavior]
 
-        startFrameIdxs = framesArrThis[:, startState]
-        endFrameIdxs = framesArrThis[:, endState]
+        idxIntervalStart = intervalStart - 1
+        idxIntervalEnd = intervalEnd - 1
+
+        startFrameIdxs = framesArrThis[:, idxIntervalStart]
+        endFrameIdxs = framesArrThis[:, idxIntervalEnd]
 
         return [np.copy(dataNeuroThis[start:end].T) for start, end in zip(startFrameIdxs, endFrameIdxs)]
 
-    def get_data_from_interval(self, startState, endState, queryDict):
+    def get_data_from_interval(self, intervalStart, intervalEnd, queryDict):
         rez = []
 
         dataType = queryDict["datatype"] if "datatype" in queryDict.keys() else "raw"
@@ -247,11 +275,11 @@ class BehaviouralNeuronalDatabase :
                     print("No behaviour found for", queryDictBehav, "; skipping")
             else:
                 for idxBehavior, rowBehavior in rowsBehavThis.iterrows():
-                    rezThis = self.get_data_session_interval_fromindex(idxNeuro, idxBehavior, startState, endState, dataType)
+                    rezThis = self.get_data_session_interval_fromindex(idxNeuro, idxBehavior, intervalStart, intervalEnd, dataType)
 
                     if np.any([np.prod(d.shape) == 0 for d in rezThis]):
                         if self.verbose:
-                            print("Warning: ", rowNeuro["session"], "has zero interval", startState, endState)
+                            print("Warning: ", rowNeuro["session"], "has zero interval", intervalStart, intervalEnd)
 
                     rez += rezThis
 
@@ -259,30 +287,63 @@ class BehaviouralNeuronalDatabase :
 
     def get_data_from_phase(self, phase, queryDict):
         if "performance" in queryDict.keys():
-            startState, endState = self.phase_to_interval(phase, queryDict["performance"])
-            return self.get_data_from_interval(startState, endState, queryDict)
+            perf = queryDict["performance"]
+            intervalStart, intervalEnd = self.phasesDict[perf][phase]
+            return self.get_data_from_interval(intervalStart, intervalEnd, queryDict)
         else:
             # If performance is not specified, merge trials for all performance measures
             rez = []
-            queryDictCopy = deepcopy(queryDict)
-            for perf in set(self.metaDataFrames['behaviorStates']['performance']):
-                queryDictCopy["performance"] = perf
-                rez += self.get_data_from_phase(phase, queryDictCopy)
+            for perf in self.get_performances():
+                rez += self.get_data_from_phase(phase, {**queryDict, **{"performance" : perf}})
             return rez
+
+    def get_data_from_semiphase(self, semiphase, queryDict):
+        if "performance" in queryDict.keys():
+            perf = queryDict["performance"]
+            intervalStart, intervalEnd = self.semiphasesDict[perf][semiphase]
+            return self.get_data_from_interval(intervalStart, intervalEnd, queryDict)
+        else:
+            raise ValueError("Merging of performances not implemented for semiphases")
 
     # Wrapper for selecting phase or single interval
     def get_data_from_selector(self, selector, queryDict):
-        if "interval" in selector:
-            iInterv = selector["interval"]
-            return self.get_data_from_interval(iInterv, iInterv + 1, queryDict)
-        elif "phase" in selector:
-            return self.get_data_from_phase(selector["phase"], queryDict)
+        selectorKey, selectorVal = *selector.keys(), *selector.values()
+
+        if selectorKey == "interval":
+            intervalStart = selectorVal
+            return self.get_data_from_interval(intervalStart, intervalStart + 1, queryDict)
+        elif selectorKey == "phase":
+            return self.get_data_from_phase(selectorVal, queryDict)
+        elif selectorKey == "semiphase":
+            return self.get_data_from_semiphase(selectorVal, queryDict)
+        elif selectorKey == "range":
+            intervalStart, intervalEnd = selectorVal
+            return self.get_data_from_interval(intervalStart, intervalEnd, queryDict)
         else:
             raise ValueError("Unexpected selector", selector)
 
-    def get_phase_bounding_lines(self, performance):
-        phases = self.phases[performance]
-        intervBounds = []
-        for phase in phases:
-            intervBounds += list(self.phase_to_interval(phase, performance))
-        return set(intervBounds)
+    def get_phase_bounding_lines(self, phaseType, performance, haveWaiting=True):
+        if phaseType == 'interval':
+            intervBounds = []
+
+            phases = self.get_phasetype_keys('phase', performance)
+            if not haveWaiting:
+                phases = phases[:-1]
+
+            for phase in phases:
+                intervBounds += list(self.phasesDict[performance][phase])
+            return np.array(list(set(intervBounds))) - 0.5
+
+        elif phaseType == 'semiphase':
+            semiphases = self.get_phasetype_keys('semiphase', performance)
+            lastE = [idx for idx, val in enumerate(semiphases) if 'E' in val][-1] + 1
+            lastM = [idx for idx, val in enumerate(semiphases) if 'M' in val][-1] + 1
+            lastR = [idx for idx, val in enumerate(semiphases) if 'R' in val][-1] + 1
+            lastW = [idx for idx, val in enumerate(semiphases) if 'W' in val][-1] + 1
+
+            if haveWaiting:
+                return np.array([0, lastE, lastM, lastR, lastW]) + 0.5
+            else:
+                return np.array([0, lastE, lastM, lastR]) + 0.5
+        else:
+            raise ValueError("Unexpected phasetype", phaseType)

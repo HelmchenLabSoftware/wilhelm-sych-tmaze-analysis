@@ -59,37 +59,37 @@ def _metric_single(selector, dataDB, queryDict, metricName, metricCalculator, di
             return rezArr.transpose(np.hstack([np.arange(1, rezArr.ndim), [0]]))
 
 
-def metric_by_interval(dataDB, queryDict, metricName, dimOrderTrg, settings, intervals=None, channelFilter=None):
-    serial = True if "serial" not in settings.keys() else settings["serial"]
-    mc = MetricCalculatorNonUniform(serial=serial, verbose=False)
-
-    if intervals is None:
-        if "performance" not in queryDict:
-            raise ValueError("Can't sweep over all intervals if performance is not specified. Intervals mismatch between Correct/Mistake")
-
-        intervals = dataDB.get_intervals(queryDict['performance'])
-
-    metricValues = []   # [nInterv, nDataPoint]
-    for iInterv in intervals:
-        selector = {"interval" : iInterv}
-        metricValues += [_metric_single(selector, dataDB, queryDict, metricName, mc, dimOrderTrg, settings, channelFilter)]
-
-    return np.array(metricValues)
-
-
-def metric_by_phase(dataDB, queryDict, metricName, dimOrderTrg, settings, phases=None, channelFilter=None):
-    serial = True if "serial" not in settings.keys() else settings["serial"]
-    mc = MetricCalculatorNonUniform(serial=serial, verbose=False)
-
-    if phases is None:
-        phases = dataDB.phases["Correct"]
-
-    metricValues = []
-    for phase in phases:
-        selector = {"phase" : phase}
-        metricValues += [_metric_single(selector, dataDB, queryDict, metricName, mc, dimOrderTrg, settings, channelFilter)]
-
-    return np.array(metricValues)
+# def metric_by_interval(dataDB, queryDict, metricName, dimOrderTrg, settings, intervals=None, channelFilter=None):
+#     serial = True if "serial" not in settings.keys() else settings["serial"]
+#     mc = MetricCalculatorNonUniform(serial=serial, verbose=False)
+#
+#     if intervals is None:
+#         if "performance" not in queryDict:
+#             raise ValueError("Can't sweep over all intervals if performance is not specified. Intervals mismatch between Correct/Mistake")
+#
+#         intervals = dataDB.get_intervals(queryDict['performance'])
+#
+#     metricValues = []   # [nInterv, nDataPoint]
+#     for iInterv in intervals:
+#         selector = {"interval" : iInterv}
+#         metricValues += [_metric_single(selector, dataDB, queryDict, metricName, mc, dimOrderTrg, settings, channelFilter)]
+#
+#     return np.array(metricValues)
+#
+#
+# def metric_by_phase(dataDB, queryDict, metricName, dimOrderTrg, settings, phases=None, channelFilter=None):
+#     serial = True if "serial" not in settings.keys() else settings["serial"]
+#     mc = MetricCalculatorNonUniform(serial=serial, verbose=False)
+#
+#     if phases is None:
+#         phases = dataDB.phases["Correct"]
+#
+#     metricValues = []
+#     for phase in phases:
+#         selector = {"phase" : phase}
+#         metricValues += [_metric_single(selector, dataDB, queryDict, metricName, mc, dimOrderTrg, settings, channelFilter)]
+#
+#     return np.array(metricValues)
 
 
 def metric_by_selector(dataDB, queryDict, metricName, dimOrderTrg, selector, settings, channelFilter=None):
@@ -98,11 +98,34 @@ def metric_by_selector(dataDB, queryDict, metricName, dimOrderTrg, selector, set
     return _metric_single(selector, dataDB, queryDict, metricName, mc, dimOrderTrg, settings, channelFilter)
 
 
-def metric_by_selector_all(dataDB, queryDict, phaseType, metricName, dimOrderTrg, settings, ranges=None, channelFilter=None):
-    if phaseType == 'interval':
-        return metric_by_interval(dataDB, queryDict, metricName, dimOrderTrg, settings, intervals=ranges, channelFilter=channelFilter)
-    else:
-        return metric_by_phase(dataDB, queryDict, metricName, dimOrderTrg, settings, phases=ranges, channelFilter=channelFilter)
+def metric_by_selector_all(dataDB, queryDict, phaseType, metricName, dimOrderTrg, settings, ranges=None, haveWaiting=True, channelFilter=None):
+    serial = True if "serial" not in settings.keys() else settings["serial"]
+    mc = MetricCalculatorNonUniform(serial=serial, verbose=False)
+
+    if not haveWaiting:
+        if ranges is not None:
+            raise ValueError("Can't exclude waiting if specific range provided")
+
+        if 'performance' not in queryDict.keys():
+            raise ValueError("Can't exclude waiting for unknown performance for", phaseType)
+
+        phases = dataDB.get_phasetype_keys('phase', queryDict['performance'])[:-1]
+
+        if phaseType == 'phase':
+            ranges = phases
+        else:
+            flatten2Dlist = lambda l: [item for sublist in l for item in sublist]
+            return flatten2Dlist([dataDB.get_phasetype_keys_from_phase(phase, phaseType, queryDict['performance']) for phase in phases])
+
+    elif ranges is None:
+        ranges = dataDB.get_phasetype_keys(phaseType, queryDict['performance'])
+
+    metricValues = []
+    for rangeVal in ranges:
+        selector = {phaseType : rangeVal}
+        metricValues += [_metric_single(selector, dataDB, queryDict, metricName, mc, dimOrderTrg, settings, channelFilter)]
+
+    return np.array(metricValues)
 
 
 # A sweep over query parameters. If mice are not specified, then we iterate over all mice
