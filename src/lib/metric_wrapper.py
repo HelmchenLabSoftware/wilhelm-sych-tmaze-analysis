@@ -102,24 +102,23 @@ def metric_by_selector_all(dataDB, queryDict, phaseType, metricName, dimOrderTrg
     serial = True if "serial" not in settings.keys() else settings["serial"]
     mc = MetricCalculatorNonUniform(serial=serial, verbose=False)
 
-    if not haveWaiting:
-        if ranges is not None:
+    if ranges is None:
+        # Find performance, check if it is or must be specified
+        if 'performance' not in queryDict.keys():
+            if phaseType == 'phase':
+                performance = 'Correct'
+            else:
+                raise ValueError("Must specify performance for analysis of", phaseType)
+        else:
+            performance = queryDict['performance']
+
+        # Compute ranges
+        ranges = dataDB.get_phasetype_keys(phaseType, performance, haveWaiting=haveWaiting)
+    else:
+        if not haveWaiting:
             raise ValueError("Can't exclude waiting if specific range provided")
 
-        if 'performance' not in queryDict.keys():
-            raise ValueError("Can't exclude waiting for unknown performance for", phaseType)
-
-        phases = dataDB.get_phasetype_keys('phase', queryDict['performance'])[:-1]
-
-        if phaseType == 'phase':
-            ranges = phases
-        else:
-            flatten2Dlist = lambda l: [item for sublist in l for item in sublist]
-            return flatten2Dlist([dataDB.get_phasetype_keys_from_phase(phase, phaseType, queryDict['performance']) for phase in phases])
-
-    elif ranges is None:
-        ranges = dataDB.get_phasetype_keys(phaseType, queryDict['performance'])
-
+    # Calculate metric for each value within the ranges
     metricValues = []
     for rangeVal in ranges:
         selector = {phaseType : rangeVal}

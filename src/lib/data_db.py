@@ -211,16 +211,25 @@ class BehaviouralNeuronalDatabase :
     def get_performances(self):
         return list(sorted(set(self.metaDataFrames['behaviorStates']['performance'])))
 
-    def get_phasetype_keys(self, phaseType, performance):
-        if phaseType == 'interval':
-            # TODO: Note that there are 1 less intervals than interval flags. Make flags and intervals distinct
-            return np.array(list(self.intervalsDict[performance].keys()), dtype=int)[:-1]
-        elif phaseType == 'phase':
-            return list(self.phasesDict[performance].keys())
-        elif phaseType == 'semiphase':
-            return list(self.semiphasesDict[performance].keys())
+    def get_phasetype_keys(self, phaseType, performance, haveWaiting=True):
+        if haveWaiting:
+            if phaseType == 'interval':
+                # TODO: Note that there are 1 less intervals than interval flags. Make flags and intervals distinct
+                return np.array(list(self.intervalsDict[performance].keys()), dtype=int)[:-1]
+            elif phaseType == 'phase':
+                return list(self.phasesDict[performance].keys())
+            elif phaseType == 'semiphase':
+                return list(self.semiphasesDict[performance].keys())
+            else:
+                raise ValueError("Unexpected phase type", phaseType)
         else:
-            raise ValueError("Unexpected phase type", phaseType)
+            phases = self.get_phasetype_keys('phase', performance, haveWaiting=True)[:-1]
+
+            if phaseType == 'phase':
+                return phases
+            else:
+                flatten2Dlist = lambda l: [item for sublist in l for item in sublist]
+                return flatten2Dlist([self.get_phasetype_keys_from_phase(phase, phaseType, performance) for phase in phases])
 
     def get_phasetype_keys_from_phase(self, phase, phaseType, performance):
         if phaseType == 'interval':

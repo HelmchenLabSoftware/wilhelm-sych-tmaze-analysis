@@ -66,7 +66,7 @@ def plot_labeled_violins(ax, dataLst, dataLabels, paramName, metricName, joinMea
         display(logPValArr)
 
 
-def plot_labeled_bars(ax, data, dataLabels, plotLabel=None, alpha=None):
+def plot_labeled_bars(ax, data, dataLabels, plotLabel=None, alpha=None, vlines=None, hlines=None):
     dataEff = data if data.ndim == 2 else data[:, None]
     nDim, nData = dataEff.shape
     x = np.arange(nDim)
@@ -75,10 +75,13 @@ def plot_labeled_bars(ax, data, dataLabels, plotLabel=None, alpha=None):
     ax.bar(x, y, width=1, alpha=alpha, label=plotLabel)
     plt.setp(ax, xticks=x, xticklabels=dataLabels)
 
+    if vlines is not None:
+        for vline in vlines:
+            ax.axvline(x=vline, color='r', linestyle='--')
 
-def plot_bar_bounds(ax, bounds):
-    for vline in bounds:
-        ax.axvline(x=vline-0.5, color='r', linestyle='--')
+    if hlines is not None:
+        for hline in hlines:
+            ax.axhline(y=hline, color='r', linestyle='--')
 
 
 def plot_stretched_intervals(ax, dataDB, queryDict, intervalStart, intervalEnd, nInterp=100):
