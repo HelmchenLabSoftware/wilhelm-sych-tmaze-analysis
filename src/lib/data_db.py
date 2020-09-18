@@ -312,7 +312,20 @@ class BehaviouralNeuronalDatabase :
             intervalStart, intervalEnd = self.semiphasesDict[perf][semiphase]
             return self.get_data_from_interval(intervalStart, intervalEnd, queryDict)
         else:
-            raise ValueError("Merging of performances not implemented for semiphases")
+            rez = []
+            for perf in self.get_performances():
+                if semiphase not in self.semiphasesDict[perf].keys():
+                    raise ValueError('Semiphase', semiphase, 'does not exist for performance', perf)
+
+                intervalStart, intervalEnd = self.semiphasesDict[perf][semiphase]
+                rez += self.get_data_from_interval(intervalStart, intervalEnd, queryDict)
+
+            return rez
+
+
+
+
+
 
     # Wrapper for selecting phase or single interval
     def get_data_from_selector(self, selector, queryDict):

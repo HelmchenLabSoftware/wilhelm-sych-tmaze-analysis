@@ -4,7 +4,7 @@ from IPython.display import display
 from scipy.stats import combine_pvalues
 
 from mesostat.utils.pandas_helper import outer_product_df, get_rows_colvals
-from mesostat.stat.machinelearning import binary_classifier
+from mesostat.stat.classification import binary_classifier
 
 from src.lib.metric_wrapper import metric_by_sweep, metric_by_selector
 from src.lib.stat_lib import test_rank_wrapper
@@ -17,7 +17,7 @@ def _table_multiple_tests(sweepDF, metricValuesDict, multiplexKey):
     for idx, row in sweepDF.iterrows():
         # Print means for each condition
         for condVal in condValues:
-            rezDF.at[idx, "mu("+condVal+")"] = np.mean(metricValuesDict[condVal][idx])
+            rezDF.at[idx, "mu("+condVal+")"] = np.nanmean(metricValuesDict[condVal][idx])
 
         # Perform tests for each pair of conditions
         nNoNanLst = []
@@ -31,6 +31,7 @@ def _table_multiple_tests(sweepDF, metricValuesDict, multiplexKey):
                 nNoNanLst += [nNoNan]
 
         # rezDF.at[idx, "nTrial"] = str(nNoNanLst)
+    # print(metricValuesDict)
 
     rezDF = _consolidate_multiplexed_pvalues(rezDF, sweepDF, multiplexKey)
     display(rezDF)

@@ -76,7 +76,7 @@ def test_signed_rank_nan_aware(data1, data2):
     else:
         logPval = -np.log10(wilcoxon(data1nonan, data2nonan)[1])
     nNoNan = np.sum(~nanIdx)
-    return logPval, nNoNan
+    return logPval, [nNoNan, nNoNan]
 
 
 def test_quantity(dataA, dataB, pval, proxyFunc=None, nResample=1000):

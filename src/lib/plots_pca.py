@@ -23,16 +23,20 @@ class PCAPlots:
         self.dataDB = dataDB
         self.selector = selector
         self.queryDict = queryDict
+        self.channelFilterMouse = channelFilterMouse
 
         data3DAll = self.dataDB.get_data_from_selector(self.selector, queryDict)
         data2DAll = np.hstack(data3DAll)
-
-        if channelFilterMouse is not None:
-            data2DAll = data2DAll[channelFilterMouse]
+        data2DAll = self._filter_channels(data2DAll)
 
         self.pca = PCA(n_components=2)
         self.pca.fit(data2DAll.T)
 
+    def _filter_channels(self, data2D):
+        if self.channelFilterMouse is not None:
+            return data2D[self.channelFilterMouse]
+        else:
+            return data2D
 
     def _process_trials(self, data3D, strat):
         if strat == 'concat':
@@ -99,7 +103,7 @@ class PCAPlots:
                 for dataTrial in dataEff:
                     labelEff = None if haveLabel else param['label']
                     haveLabel = True
-                    x, y = self._transform(dataTrial)
+                    x, y = self._transform(self._filter_channels(dataTrial))
                     ax.plot(x, y, color=param['color'], label=labelEff, alpha=0.5)
 
                 iColor += 1
@@ -117,6 +121,8 @@ class PCAPlots:
                 data = self.dataDB.get_data_from_selector(self.selector, queryDictThis)
 
                 data2DCond = np.array([np.mean(d, axis=1) for d in data]).T
+                data2DCond = self._filter_channels(data2DCond)
+
                 x, y = self._transform(data2DCond)
 
                 label = str([direction, performance])
@@ -139,7 +145,7 @@ class PCAPlots:
                 haveLabel = False
                 label = str([direction, performance])
                 for data2D in data:
-                    x = self._transform(data2D)[iPCA]
+                    x = self._transform(self._filter_channels(data2D))[iPCA]
 
                     labelEff = None if haveLabel else label
                     haveLabel = True
@@ -169,6 +175,8 @@ class PCAPlots:
             {"condition": "performance", "direction": "R"}
         ]
 
+        cmaps = ['Reds_r', 'Greens_r', 'Blues_r']
+
         for iTest, test in enumerate(tests):
             if test["condition"] == "direction":
                 queryDictExtraA = {'performance': test["performance"], 'direction': 'L'}
@@ -180,6 +188,9 @@ class PCAPlots:
             dataA = self.dataDB.get_data_from_selector(self.selector, {**self.queryDict, **queryDictExtraA})
             dataB = self.dataDB.get_data_from_selector(self.selector, {**self.queryDict, **queryDictExtraB})
 
+            dataA = [self._filter_channels(data2D) for data2D in dataA]
+            dataB = [self._filter_channels(data2D) for data2D in dataB]
+
             dataAEff = np.array(self._preprocess(dataA, param)).transpose((2, 0, 1))
             dataBEff = np.array(self._preprocess(dataB, param)).transpose((2, 0, 1))
 
@@ -187,12 +198,16 @@ class PCAPlots:
             distPval = [difference_test(dist_func, a, b, 1000, sampleFunction="permutation")[1] for a, b in zip(dataAEff, dataBEff)]
             distNegLogPval = np.array([-np.log10(p) for p in distPval])
 
-            label = str("-".join(list(test.values())))
-            # ax.plot(distTrue + iTest, label=label)
-
             x = np.arange(len(distTrue))
-            plot_coloured_1D(ax, x, distTrue + iTest, distNegLogPval, vmin=0, vmax=4, haveColorBar=(iTest==0))
-            ax.text(len(distTrue) / 2, iTest, label, ha='left', wrap=True)
+            label = str("-".join(list(test.values())))
+            ax.plot(x, distNegLogPval, label=label)
+
+            # x = np.arange(len(distTrue))
+            # plot_coloured_1D(ax, x, distTrue + iTest, distNegLogPval, cmap=cmaps[iTest], vmin=0, vmax=4, haveColorBar=(iTest==0))
+            # ax.text(len(distTrue) / 2, iTest, label, ha='left', wrap=True)
+
+        ax.axhline(y=2, linestyle='--', color='r')
+        ax.legend()
 
 
 
