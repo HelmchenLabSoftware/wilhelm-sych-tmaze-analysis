@@ -232,6 +232,8 @@ class BehaviouralNeuronalDatabase :
                 return flatten2Dlist([self.get_phasetype_keys_from_phase(phase, phaseType, performance) for phase in phases])
 
     def get_phasetype_keys_from_phase(self, phase, phaseType, performance):
+        if phaseType == 'phase':
+            return [phase]
         if phaseType == 'interval':
             return list(range(*self.phasesDict[performance][phase]))
         elif phaseType == 'semiphase':
