@@ -324,11 +324,6 @@ class BehaviouralNeuronalDatabase :
 
             return rez
 
-
-
-
-
-
     # Wrapper for selecting phase or single interval
     def get_data_from_selector(self, selector, queryDict):
         selectorKey, selectorVal = *selector.keys(), *selector.values()
