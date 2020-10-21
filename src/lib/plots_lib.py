@@ -30,7 +30,7 @@ def plot_coloured_1D(ax, x, y, z, cmap='jet', vmin=None, vmax=None, haveColorBar
         imshowAddFakeColorBar(ax.figure, ax, cmap=cmap, vmin=vmin, vmax=vmax)
 
 
-def plot_labeled_violins(ax, dataLst, dataLabels, paramName, metricName, joinMeans=True, haveLog=False, sigTestPairs=None, printLogP=False):
+def plot_labeled_violins(ax, dataLst, dataLabels, paramName, metricName, joinMeans=True, haveLog=False, sigTestPairs=None, printLogP=False, violinInner=None):
     data = np.concatenate(dataLst)
     nDataLst = [len(d) for d in dataLst]
 
@@ -40,13 +40,15 @@ def plot_labeled_violins(ax, dataLst, dataLabels, paramName, metricName, joinMea
     if haveLog:
         ax.set_yscale("log")
 
-    sns.violinplot(ax=ax, data=df, x=paramName, y=metricName, cut=0)
+    sns.violinplot(ax=ax, data=df, x=paramName, y=metricName, cut=0, inner=violinInner)
     if sigTestPairs is not None:
-        labelPairs = [(dataLabels[i], dataLabels[j]) for i, j in sigTestPairs]
-        dataSizes = [(len(df[df[paramName] == l1]), len(df[df[paramName] == l2])) for l1, l2 in labelPairs]
-        dataTuples = [(df[df[paramName] == l1][metricName], df[df[paramName] == l2][metricName]) for l1, l2 in labelPairs]
+        labelPairs = []
+        for i, j in sigTestPairs:
+            labelPairs += [(dataLabels[i], dataLabels[j])]
 
-        print("For", labelPairs[0], "of data size", dataSizes[0], "rank-sum-test is", mannwhitneyu(*dataTuples[0], alternative='two-sided')[1])
+            print("For", labelPairs[-1],
+                  "of data size", (len(dataLst[i]), len(dataLst[j])),
+                  "rank-sum-test is", mannwhitneyu(dataLst[i], dataLst[j], alternative='two-sided')[1])
 
         add_stat_annotation(ax, data=df, x=paramName, y=metricName, box_pairs=labelPairs, test='Mann-Whitney', loc='inside', verbose=0)  # , text_format='full'
 
