@@ -320,7 +320,7 @@ class BehaviouralNeuronalDatabase :
                     raise ValueError('Semiphase', semiphase, 'does not exist for performance', perf)
 
                 intervalStart, intervalEnd = self.semiphasesDict[perf][semiphase]
-                rez += self.get_data_from_interval(intervalStart, intervalEnd, queryDict)
+                rez += self.get_data_from_interval(intervalStart, intervalEnd, {**queryDict, **{"performance" : perf}})
 
             return rez
 

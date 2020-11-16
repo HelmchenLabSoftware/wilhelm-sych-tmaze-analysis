@@ -206,6 +206,7 @@ class PCAPlots:
             # plot_coloured_1D(ax, x, distTrue + iTest, distNegLogPval, cmap=cmaps[iTest], vmin=0, vmax=4, haveColorBar=(iTest==0))
             # ax.text(len(distTrue) / 2, iTest, label, ha='left', wrap=True)
 
+        ax.set_ylim(0, 3.5)
         ax.axhline(y=2, linestyle='--', color='r')
         ax.legend()
 
