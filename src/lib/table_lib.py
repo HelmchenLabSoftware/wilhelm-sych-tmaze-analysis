@@ -3,7 +3,7 @@ import pandas as pd
 from IPython.display import display
 from scipy.stats import combine_pvalues
 
-from mesostat.utils.pandas_helper import outer_product_df, get_rows_colvals
+from mesostat.utils.pandas_helper import outer_product_df, pd_query
 from mesostat.stat.classification import binary_classifier
 
 from src.lib.metric_wrapper import metric_by_sweep, metric_by_selector
@@ -55,7 +55,7 @@ def _consolidate_multiplexed_pvalues(testDF, sweepDF, multiplexKey):
         testDF = testDF.drop([multiplexKey], axis=1)
 
         for idxSweep, rowSweep in sweepDF.iterrows():
-            queryRows = get_rows_colvals(testDF, dict(rowSweep))
+            queryRows = pd_query(testDF, dict(rowSweep))
 
             filterDict = {}
             for queryCol in queryRows:

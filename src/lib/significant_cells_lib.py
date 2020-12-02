@@ -1,14 +1,14 @@
 import numpy as np
 import pandas as pd
 
-from mesostat.utils.pandas_helper import get_rows_colvals
+from mesostat.utils.pandas_helper import pd_query
 
 class SignificantCells:
     def __init__(self, filename):
         self.df = pd.read_hdf(filename, key='df')
 
     def _get_cells(self, queryDict):
-        queryDF = get_rows_colvals(self.df, queryDict)
+        queryDF = pd_query(self.df, queryDict)
         if len(queryDF) == 0:
             raise ValueError("Nothing found for query", queryDict)
 

@@ -74,7 +74,7 @@ class BehaviouralNeuronalDatabase :
             datestr = self._drop_non_digit(sp[-1])
             session = mousename + '_' + datestr
             pathname = join(path, name)
-            self.metaDataFrames[metaKey] = pandas_helper.add_list_as_row(self.metaDataFrames[metaKey], [mousename, datestr, session, pathname])
+            self.metaDataFrames[metaKey] = pandas_helper.pd_append_row(self.metaDataFrames[metaKey], [mousename, datestr, session, pathname])
 
         self.mice.update(set(self.metaDataFrames[metaKey]['mousename']))
         self.sessions.update(set(self.metaDataFrames[metaKey]['session']))
@@ -90,7 +90,7 @@ class BehaviouralNeuronalDatabase :
             datestr = self._drop_non_digit(sp[-1])
             session = mousename + '_' + datestr
             pathname = join(path, name)
-            self.metaDataFrames[metaKey] = pandas_helper.add_list_as_row(self.metaDataFrames[metaKey], [mousename, datestr, session, pathname])
+            self.metaDataFrames[metaKey] = pandas_helper.pd_append_row(self.metaDataFrames[metaKey], [mousename, datestr, session, pathname])
 
     def read_interval_maps(self):
         libPath = dirname(__file__)
@@ -182,7 +182,7 @@ class BehaviouralNeuronalDatabase :
                             idxsFrameIntervalsAligned = np.round(timeIntervalsAligned * FPS_DOWNSAMPLED).astype(int)
 
                             self.behaviorStateFrames += [idxsFrameIntervalsAligned]
-                            self.metaDataFrames['behaviorStates'] = pandas_helper.add_list_as_row(
+                            self.metaDataFrames['behaviorStates'] = pandas_helper.pd_append_row(
                                 self.metaDataFrames['behaviorStates'],
                                 [row["session"], trialDirection, perf]
                             )
@@ -250,7 +250,7 @@ class BehaviouralNeuronalDatabase :
         return mice[0]
 
     def get_rows(self, metaFrameName, query):
-        return pandas_helper.get_rows_colvals(self.metaDataFrames[metaFrameName], query)
+        return pandas_helper.pd_query(self.metaDataFrames[metaFrameName], query)
 
     def get_data_session_interval_fromindex(self, idxNeuro, idxBehavior, intervalStart, intervalEnd, dataType='raw'):
         if (idxNeuro is None) or (idxBehavior is None):
