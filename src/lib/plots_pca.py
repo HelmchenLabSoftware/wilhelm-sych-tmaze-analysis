@@ -10,10 +10,8 @@ from scipy.ndimage import gaussian_filter1d
 from mesostat.utils.signals import resample_stretch
 from mesostat.stat.permtests import difference_test
 from mesostat.utils.hdf5_io import DataStorage
-from mesostat.utils.pandas_helper import get_rows_colvals
-
-
-from src.lib.plots_lib import plot_coloured_1D
+from mesostat.utils.pandas_helper import pd_query
+from mesostat.visualization.mpl_1D import plot_coloured_1D
 
 '''
     TODO:
@@ -289,7 +287,7 @@ def plot_distances(h5name, dataDB):
     dfMetaDataIter = dfMetaDataIter.drop_duplicates()
 
     for idx, row in dfMetaDataIter.iterrows():
-        dfFiltered = get_rows_colvals(dfMetaData, dict(row), dropQuery=True)
+        dfFiltered = pd_query(dfMetaData, dict(row), dropQuery=True)
 
         mice = sorted(set(dfFiltered['mousename']))
         conditions = sorted(set(dfFiltered['condition']))
@@ -306,7 +304,7 @@ def plot_distances(h5name, dataDB):
                 semiRelLen[semiphase] = np.mean([d.shape[1] for d in dataTMPLst])
 
             for condition in conditions:
-                dfFiltered2 = get_rows_colvals(dfFiltered, {'mousename' : mousename, 'condition' : condition}, dropQuery=True)
+                dfFiltered2 = pd_query(dfFiltered, {'mousename' : mousename, 'condition' : condition}, dropQuery=True)
 
                 keyCond = 'direction' if condition == 'performance' else 'performance'
                 keyCondVals = set(dfFiltered2[keyCond])

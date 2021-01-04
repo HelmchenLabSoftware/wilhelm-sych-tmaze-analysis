@@ -1,6 +1,6 @@
 import numpy as np
 
-from mesostat.utils.arrays import numpy_nonelist_to_array, get_list_shapes
+from mesostat.utils.arrays import get_list_shapes #, numpy_nonelist_to_array
 import mesostat.stat.resampling as resampling
 
 from mesostat.metric.metric_non_uniform import MetricCalculatorNonUniform

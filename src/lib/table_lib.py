@@ -5,9 +5,9 @@ from scipy.stats import combine_pvalues
 
 from mesostat.utils.pandas_helper import outer_product_df, pd_query
 from mesostat.stat.classification import binary_classifier
+from mesostat.stat.testing.htests import mannwhitneyu_nan_aware
 
 from src.lib.metric_wrapper import metric_by_sweep, metric_by_selector
-from src.lib.stat_lib import test_rank_wrapper
 
 
 def _table_multiple_tests(sweepDF, metricValuesDict, multiplexKey):
@@ -24,7 +24,7 @@ def _table_multiple_tests(sweepDF, metricValuesDict, multiplexKey):
         for i in range(nConditions):
             for j in range(i + 1, nConditions):
                 testLabel = "-logp(" + condValues[i] + "->" + condValues[j] + ")"
-                logp, nNoNan = test_rank_wrapper(
+                logp, nNoNan = mannwhitneyu_nan_aware(
                     metricValuesDict[condValues[i]][idx],
                     metricValuesDict[condValues[j]][idx])
                 rezDF.at[idx, testLabel] = np.round(logp, 2)
