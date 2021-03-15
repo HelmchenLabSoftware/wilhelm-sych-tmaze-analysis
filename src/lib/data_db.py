@@ -9,7 +9,7 @@ from os.path import join, splitext, dirname
 from mesostat.utils.matlab_helper import loadmat
 from mesostat.utils.system import getfiles_walk
 import mesostat.utils.pandas_helper as pandas_helper
-from mesostat.utils.signals import zscore
+from mesostat.utils.signals.filter import zscore
 
 from src.lib.baseline_lib import crop_quantile
 
@@ -273,7 +273,7 @@ class BehaviouralNeuronalDatabase :
         dataType = queryDict["datatype"] if "datatype" in queryDict.keys() else "raw"
         metaKey = "deconv" if dataType == "deconv" else "dff"
 
-        queryDictNeuro = {k : v for k,v in queryDict.items() if k in ["mousename", "session"]}
+        queryDictNeuro = {k: v for k, v in queryDict.items() if k in ["mousename", "session"]}
         queryDictBehav = {k: v for k, v in queryDict.items() if k not in ["mousename", "datatype"]}
 
         rowsNeuro = self.get_rows(metaKey, queryDictNeuro)

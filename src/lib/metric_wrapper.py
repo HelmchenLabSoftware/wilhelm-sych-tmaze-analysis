@@ -1,6 +1,6 @@
 import numpy as np
 
-from mesostat.utils.arrays import get_list_shapes #, numpy_nonelist_to_array
+from mesostat.utils.arrays import set_list_shapes #, numpy_nonelist_to_array
 import mesostat.stat.resampling as resampling
 
 from mesostat.metric.metric_non_uniform import MetricCalculatorNonUniform
@@ -51,7 +51,7 @@ def _metric_single(selector, dataDB, queryDict, metricName, metricCalculator, di
                     metricCalculator.set_data(dataLst, zscoreChannel=zscoreChannel)
                     rezLst += [metricCalculator.metric3D(metricName, dimOrderTrg, metricSettings=metricSettings, sweepSettings=sweepSettings)]
 
-            if len(get_list_shapes(rezLst)) > 1:
+            if len(set_list_shapes(rezLst)) > 1:
                 raise ValueError("Testing currently not available for metrics of variable shape")
 
             # Set testing as last dimension, so it does not interfere with postprocessing
