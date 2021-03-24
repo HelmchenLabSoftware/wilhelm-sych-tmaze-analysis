@@ -2,16 +2,13 @@ import numpy as np
 import matplotlib.pyplot as plt
 from copy import deepcopy
 
-from IPython.display import display
-
 from sklearn.decomposition import PCA
 from scipy.ndimage import gaussian_filter1d
 
-from mesostat.utils.signals import resample_stretch
+from mesostat.utils.signals.resample import resample_stretch
 from mesostat.stat.permtests import difference_test
 from mesostat.utils.hdf5_io import DataStorage
 from mesostat.utils.pandas_helper import pd_query
-from mesostat.visualization.mpl_1D import plot_coloured_1D
 
 '''
     TODO:
