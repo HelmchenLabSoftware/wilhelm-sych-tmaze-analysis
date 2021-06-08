@@ -269,6 +269,12 @@ def plot_significant_firing_rate_by_neuron(dataDB, datatype, phaseType, cmapConf
                     if len(sigTestPairs) == 0:
                         sigTestPairs = None
 
+
+                    print(mousename, datatype, phaseType, direction, performance,
+                          np.round([np.mean(x) for x in meansSignByPhase], 3),
+                          np.round([np.std(x) for x in meansSignByPhase], 3),
+                          np.round([np.std(x) / np.sqrt(len(x)) for x in meansSignByPhase], 3))
+
                     ax3[iCol].set_title(title)
                     violins_labeled(ax3[iCol], meansSignByPhase, phaseNames, phaseType, "mean",
                                     joinMeans=False, printLogP=False, sigTestPairs=sigTestPairs,
@@ -317,6 +323,11 @@ def plot_significant_firing_rate_by_neuron(dataDB, datatype, phaseType, cmapConf
 
                 meansThisParam = [cumulMeansSignDict[(mousename, direction, performance)] for mousename in dataDB.mice]
                 meansThisParam = [np.hstack([m[i] for m in meansThisParam]) for i in range(len(phaseNames))]
+
+                print(datatype, phaseType, direction, performance,
+                      np.round([np.mean(x) for x in meansThisParam], 3),
+                      np.round([np.std(x) for x in meansThisParam], 3),
+                      np.round([np.std(x) / np.sqrt(len(x)) for x in meansThisParam], 3))
 
                 ax3All[iCol].set_title(title)
                 violins_labeled(ax3All[iCol], meansThisParam, phaseNames, phaseType, "mean",
@@ -459,6 +470,7 @@ def plot_save_significantly_firing_neurons(dataDB, datatype, phaseType, exclusiv
 
             figCountAll, axCountAll = plt.subplots(figsize=(5, 5))
             plot_df_count_combined(axCountAll, *nSignCellByMouse, *exclusiveLabels, nCellPerMouse)
+            print(figKey, exclusiveLabels, nSignCellByMouse)
 
             figCountAll.savefig('significantrate_combined_' + figKey + '.pdf')
             plt.close()
