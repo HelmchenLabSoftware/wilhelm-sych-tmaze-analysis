@@ -5,11 +5,11 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 
 from mesostat.utils.matrix import tril_1D, triu_1D, pairwise_differences
-from mesostat.stat.testing.quantity_test import test_quantity
+import mesostat.metric.sequence as sequence
 from mesostat.stat.permtests import perm_test, difference_test
-from mesostat.visualization.mpl_matrix import imshow
-import mesostat.metric.sequence as mesoseq
+from mesostat.stat.testing.quantity_test import test_quantity
 from mesostat.stat.resampling import sample
+from mesostat.visualization.mpl_matrix import imshow
 
 from src.lib.clustering import cluster_dist_matrix
 from src.lib.metric_wrapper import metric_by_selector
@@ -20,13 +20,14 @@ import src.lib.plots_lib as plots_lib
 # Helper Functions
 ######################
 
+# Reorder rows and columns of a matrix based on a permutation
 def mat_order_by_idx(M, idx):
     return np.copy(M[idx][:, idx])
 
 
 def _abbo_diff_func(x, y):
-    return mesoseq.avg_bivariate_binary_orderability_from_temporal_mean(x) -\
-           mesoseq.avg_bivariate_binary_orderability_from_temporal_mean(y)
+    return sequence.avg_bivariate_binary_orderability_from_temporal_mean(x) -\
+           sequence.avg_bivariate_binary_orderability_from_temporal_mean(y)
 
 
 ######################
@@ -116,7 +117,7 @@ def test_orderability(dataDB, datatype, selector, condition, nResample=1000, pva
 
 def plot_stability_temporal_mean(dataDB):
     nMice = len(dataDB.mice)
-    fig, ax = plt.subplots(ncols=nMice, figsize=(4 * nMice, 4))
+    fig, ax = plt.subplots(ncols=nMice, figsize=(4 * nMice, 4), tight_layout=True)
 
     for iMouse, mousename in enumerate(sorted(dataDB.mice)):
         queryDictThis = {'datatype': 'deconv', 'mousename': mousename}
@@ -134,11 +135,13 @@ def plot_stability_temporal_mean(dataDB):
         stdTempMu = np.std(dataTempMu, axis=1)
 
         ax[iMouse].plot(np.abs(muTempMu - 0.5), stdTempMu, '.')
+        ax[iMouse].set_ylabel("|MU temporal mean - 0.5|")
+        ax[iMouse].set_ylabel("STD temporal mean")
 
     plt.show()
 
 
-def plots_undirected_orderability(dataDB, queryDict, selector, nResample=100, signCellsMouseDict=None):
+def plot_undirected_orderability(dataDB, queryDict, selector, nResample=100, signCellsMouseDict=None):
     nMice = len(dataDB.mice)
 
     figureProp = {
@@ -272,7 +275,7 @@ def plots_undirected_orderability(dataDB, queryDict, selector, nResample=100, si
         plt.savefig(key + '_' + fnameSuffix + '.pdf', dpi=600)
 
 
-def plots_directed_orderability(dataDB, datatype, selector, signCellsSelector=None):
+def plot_directed_orderability(dataDB, datatype, selector, signCellsSelector=None):
     # Determine cell filtering
     if signCellsSelector == None:
         signCellsSelector = {'None': None}
@@ -284,7 +287,8 @@ def plots_directed_orderability(dataDB, datatype, selector, signCellsSelector=No
     figureProp = {
         "ord": (4, 4, "Directed Orderability matrices"),
         "ordSort": (4, 4, "Directed Orderability matrices, sorted by max directed orderability"),
-        "ordSortShuffle": (4, 4, "Directed Orderability matrices, sorted by max directed orderability, shuffled"),
+        "ordSortShuffleNeuron": (4, 4, "Directed Orderability matrices, sorted by max directed orderability, shuffled by neurons"),
+        "ordSortShuffleTrial": (4, 4, "Directed Orderability matrices, sorted by max directed orderability, shuffled by trials"),
         "ordMuScatter": (4, 4, "Relationship of average temporal mean and average directed orderability"),
         "ordShiftInv": (4, 4, "Relationship of difference of temporal means and directed orderability"),
     }
@@ -328,12 +332,19 @@ def plots_directed_orderability(dataDB, datatype, selector, signCellsSelector=No
 
         #         print(idxSortBinOrd)
 
-        # Calculate permuted orderability
-        dataTempMuShuffle = sample(dataTempMu, 'permutation', permAxis=1, iterAxis=0)
-        dataBinOrdShuffle = mesoseq.bivariate_orderability_from_temporal_mean(dataTempMuShuffle, {"directed": True})
-        meanBinOrd1DShuffle = np.nanmean(dataBinOrdShuffle, axis=0)
-        idxSortBinOrdShuffle = np.argsort(meanBinOrd1DShuffle)[::-1]
-        dataBinOrdSortedShuffle = mat_order_by_idx(dataBinOrdShuffle, idxSortBinOrdShuffle)
+        # Calculate orderability permuted by neurons
+        dataTempMuShuffleNeurons = sample(dataTempMu, 'permutation', permAxis=1, iterAxis=0)
+        dataBinOrdShuffleNeurons = sequence.bivariate_orderability_from_temporal_mean(dataTempMuShuffleNeurons, {"directed": True})
+        meanBinOrd1DShuffleNeurons = np.nanmean(dataBinOrdShuffleNeurons, axis=0)
+        idxSortBinOrdShuffleNeurons = np.argsort(meanBinOrd1DShuffleNeurons)[::-1]
+        dataBinOrdSortedShuffleNeurons = mat_order_by_idx(dataBinOrdShuffleNeurons, idxSortBinOrdShuffleNeurons)
+
+        # Calculate orderability permuted by trials
+        dataTempMuShuffleTrials = sample(dataTempMu, 'permutation', permAxis=0, iterAxis=1)
+        dataBinOrdShuffleTrials = sequence.bivariate_orderability_from_temporal_mean(dataTempMuShuffleTrials, {"directed": True})
+        meanBinOrd1DShuffleTrials = np.nanmean(dataBinOrdShuffleTrials, axis=0)
+        idxSortBinOrdShuffleTrials = np.argsort(meanBinOrd1DShuffleTrials)[::-1]
+        dataBinOrdSortedShuffleTrials = mat_order_by_idx(dataBinOrdShuffleTrials, idxSortBinOrdShuffleTrials)
 
         # Calculate difference matrix of temporal means
         dataTempMuAvg = np.mean(dataTempMu, axis=0)
@@ -352,8 +363,11 @@ def plots_directed_orderability(dataDB, datatype, selector, signCellsSelector=No
         imshow(*getfigs("ordSort"), dataBinOrdSorted, title=mousename, aspect=None, haveTicks=True, haveColorBar=True,
                limits=[-1, 1], cmap='jet')
 
-        imshow(*getfigs("ordSortShuffle"), dataBinOrdSortedShuffle, title=mousename, aspect=None, haveTicks=True,
-               haveColorBar=True, limits=[-1, 1], cmap='jet')
+        imshow(*getfigs("ordSortShuffleNeuron"), dataBinOrdSortedShuffleNeurons, title=mousename, aspect=None,
+               haveTicks=True, haveColorBar=True, limits=[-1, 1], cmap='jet')
+
+        imshow(*getfigs("ordSortShuffleTrial"), dataBinOrdSortedShuffleTrials, title=mousename, aspect=None,
+               haveTicks=True, haveColorBar=True, limits=[-1, 1], cmap='jet')
 
         getfigs("ordMuScatter")[1].plot(dataTempMuAvg, meanBinOrd1D, '.')
         getfigs("ordMuScatter")[1].set_xlim([0, 1])
@@ -473,7 +487,7 @@ def write_cell_avg_orderability(dataDB, outfname):
         json.dump(rezDict, fp)
 
 
-def plot_directed_orderability_paired_curves(dataDB, datatype, mousename, selector, cellIdx1, cellIdx2):
+def plot_two_cell_temporal_means_bytrial(dataDB, datatype, mousename, selector, cellIdx1, cellIdx2):
     queryDict = {"datatype": datatype, "mousename": mousename}
 
     # get data for all cells
@@ -519,10 +533,21 @@ def plot_directed_orderability_paired_curves(dataDB, datatype, mousename, select
 
 
 def test_average_orderability(dataDB, datatype, phasetype, performance,
-                              signCellsSelector=None, haveWaiting=False, withSEM=False):
+                              signCellsSelector=None, haveWaiting=False, withSEM=False, permStrategy='neuron'):
+
     # Determine cell filtering
     if signCellsSelector == None:
         signCellsSelector = {'None': None}
+
+    # Determine permutation axes
+    if permStrategy == 'neuron':
+        permAxis = 1
+        iterAxis = 0
+    elif permStrategy == 'trial':
+        permAxis = 0
+        iterAxis = 1
+    else:
+        raise ValueError('Unexpected permutation strategy', permStrategy)
 
     signCellsName, signCellsMouseDict = list(signCellsSelector.items())[0]
 
@@ -564,11 +589,11 @@ def test_average_orderability(dataDB, datatype, phasetype, performance,
                 settings,
                 channelFilter=signCellsMouseDict)
 
-            func_ABO = mesoseq.avg_bivariate_binary_orderability_from_temporal_mean
+            func_ABO = sequence.avg_bivariate_binary_orderability_from_temporal_mean
 
             permSettings = {"haveEffectSize": True, "haveMeans": True}
             pValL, pValR, effSize, fTrue, fRand = perm_test(
-                func_ABO, dataTempMu, permAxis=1, iterAxis=0, nSample=200, settings=permSettings)
+                func_ABO, dataTempMu, permAxis=permAxis, iterAxis=iterAxis, nSample=200, settings=permSettings)
 
             fTrueLst += [fTrue]
             fRandLst += [fRand]
@@ -615,9 +640,11 @@ def test_average_orderability(dataDB, datatype, phasetype, performance,
     axTot.set_xticks(xDummy)
     axTot.set_xticklabels(phaseKeys)
 
+    plotSuffix = '_'.join([datatype, signCellsName, 'permstrat', permStrategy])
+
     plt.figure(figTot.number)
-    plt.savefig(datatype + '_' + signCellsName + "_orderability_test_by_intervals_allmice.pdf")
+    plt.savefig("orderability_test_by_intervals_allmice_" + plotSuffix + ".pdf")
 
     plt.figure(fig.number)
-    plt.savefig(datatype + '_' + signCellsName + "_orderability_test_by_intervals.pdf")
+    plt.savefig("orderability_test_by_intervals_" + plotSuffix + ".pdf")
     plt.show()
