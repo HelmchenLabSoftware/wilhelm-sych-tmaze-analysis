@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 
 from mesostat.utils.matrix import tril_1D, triu_1D, pairwise_differences
-import mesostat.metric.sequence as sequence
+import mesostat.metric.temporal.sequence as sequence
 from mesostat.stat.permtests import perm_test, difference_test
 from mesostat.stat.testing.quantity_test import test_quantity
 from mesostat.stat.resampling import sample
