@@ -36,5 +36,4 @@ The front end of the code is contained in 6 jupyter notebooks inside the "src" f
 
 
 #  Usage
-Each cell of each notebook computes a specific plot or a statistical result. Cells are labeled for clarity
-The 2nd cell in each notebook contains paths to raw data (dff) and deconvolved data (deconv). These paths are absolute, and need to be adjusted by the user. Each path points to the root folder of the corresponding dataset.
+Each cell of each notebook computes a specific plot or a statistical result. Cells are labeled for clarity. The 2nd cell in each notebook contains paths to raw data (dff) and deconvolved data (deconv). These paths are absolute, and need to be adjusted by the user. Each path points to the root folder of the corresponding dataset.
