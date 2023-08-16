@@ -2,21 +2,10 @@
 
 Language: Python 3 (tested on 3.6, 3.8)
 
-Direct Dependencies:
+Installation instructions
+1. pip install -r requirements.txt
+2. Install in-house library [mesostat](https://github.com/HelmchenLabSoftware/mesostat-dev) and its dependencies
 
-* numpy, pandas, matplotlib, seaborn, scipy, scikit-learn, ipython, jupyter
-    
-Special Dependencies:
-
-* In-house library mesostat    
-    * https://github.com/HelmchenLabSoftware/mesostat-dev
-* Mesostat common dependencies
-    * ipython, ipywidgets, h5py, json, numpy, scipy, scikit-learn, pandas, matplotlib, seaborn, pyqt5, networkx, statannot, patsy, shutil, opencv-python, multiprocessing, pathos, subprocess, psutil
-* Mesostat special dependencies:
-    * IDTxl:  https://github.com/pwollstadt/IDTxl
-    * NPEET:  https://github.com/gregversteeg/NPEET
-
-        
 #  Structure
 
 The front end of the code is contained in 6 jupyter notebooks inside the "src" folder
