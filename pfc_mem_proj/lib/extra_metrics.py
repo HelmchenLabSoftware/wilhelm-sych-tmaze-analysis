@@ -1,7 +1,7 @@
 import numpy as np
 
 
-# Calculate number of of channels with non-zero STD over time
+# Calculate number of channels with non-zero STD over time
 def num_non_zero_std(data2DLst, settings):
     for data2D in data2DLst:
         if data2D.shape[1] <= 1:

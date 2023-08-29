@@ -11,9 +11,10 @@ from mesostat.stat.testing.quantity_test import test_quantity
 from mesostat.stat.resampling import sample
 from mesostat.visualization.mpl_matrix import imshow
 
-from src.lib.clustering import cluster_dist_matrix
-from src.lib.metric_wrapper import metric_by_selector
-import src.lib.plots_lib as plots_lib
+from pfc_mem_proj.lib.clustering import cluster_dist_matrix
+from pfc_mem_proj.lib.metric_wrapper import metric_by_selector
+import pfc_mem_proj.lib.plots_lib as plots_lib
+from pfc_mem_proj.lib.excel_export import write_excel_1D, write_excel_2D
 
 
 ######################
@@ -283,6 +284,9 @@ def plot_directed_orderability(dataDB, datatype, selector, signCellsSelector=Non
     signCellsName, signCellsMouseDict = list(signCellsSelector.items())[0]
     selectorName, selectorVal = list(selector.items())[0]
 
+    # Init data writers
+    excelWriterDirOrd = pd.ExcelWriter('excel_out/directed_ord_mat_' + datatype + '_' + selectorVal + '.xlsx')
+
     nMice = len(dataDB.mice)
     figureProp = {
         "ord": (4, 4, "Directed Orderability matrices"),
@@ -379,6 +383,10 @@ def plot_directed_orderability(dataDB, datatype, selector, signCellsSelector=Non
         getfigs("ordShiftInv")[1].axhline(y=0, linestyle='--', color='r')
         getfigs("ordShiftInv")[1].axvline(x=0, linestyle='--', color='r')
 
+        # Write data to excel
+        write_excel_2D(dataBinOrdSorted, excelWriterDirOrd, mousename + '_original')
+        write_excel_2D(dataBinOrdSortedShuffleNeurons, excelWriterDirOrd, mousename + '_shuffled')
+
     suffix = '_'.join([datatype, selectorName, str(selectorVal), signCellsName])
 
     # Save all figures
@@ -386,6 +394,8 @@ def plot_directed_orderability(dataDB, datatype, selector, signCellsSelector=Non
         plt.figure(fig.number)
         plt.savefig("directed_" + key + '_' + suffix + '.pdf', dpi=600)
         plt.close()
+
+    excelWriterDirOrd.close()
 
 
 def plots_directed_orderability_subphase_comparison(dataDB, datatype, phase):
@@ -534,6 +544,8 @@ def plot_two_cell_temporal_means_bytrial(dataDB, datatype, mousename, selector, 
 
 def test_average_orderability(dataDB, datatype, phasetype, performance,
                               signCellsSelector=None, haveWaiting=False, withSEM=False, permStrategy='neuron'):
+    # Init excel writer
+    excelWriterDirOrd = pd.ExcelWriter('excel_out/abdo_' + datatype + '_' + phasetype + '_' + performance + '.xlsx')
 
     # Determine cell filtering
     if signCellsSelector == None:
@@ -648,3 +660,7 @@ def test_average_orderability(dataDB, datatype, phasetype, performance,
     plt.figure(fig.number)
     plt.savefig("orderability_test_by_intervals_" + plotSuffix + ".pdf")
     plt.show()
+
+    write_excel_2D(np.array([muTrue, stdTrue, muRand, stdRand]).T, excelWriterDirOrd, 'Sheet',
+                   colnames=np.array(['true mean', 'true std', 'shuffle mean', 'shuffle std']))
+    excelWriterDirOrd.close()

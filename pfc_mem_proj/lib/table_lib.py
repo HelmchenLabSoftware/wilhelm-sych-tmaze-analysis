@@ -7,7 +7,7 @@ from mesostat.utils.pandas_helper import outer_product_df, pd_query
 from mesostat.stat.classification import binary_classifier
 from mesostat.stat.testing.htests import mannwhitneyu_nan_aware
 
-from src.lib.metric_wrapper import metric_by_sweep, metric_by_selector
+from pfc_mem_proj.lib.metric_wrapper import metric_by_sweep, metric_by_selector
 
 
 def _table_multiple_tests(sweepDF, metricValuesDict, multiplexKey):
@@ -73,7 +73,7 @@ def _consolidate_multiplexed_pvalues(testDF, sweepDF, multiplexKey):
                         raise ValueError("For key", queryCol, "expected 1 value, got", vals)
                     filterDict[queryCol] = vals[0]
 
-            rezDF = rezDF.append(pd.DataFrame(filterDict, index=[0]))
+            rezDF = pd.concat([rezDF, pd.DataFrame(filterDict, index=[0])])
 
         return rezDF.reset_index(drop=True)
 
@@ -172,6 +172,6 @@ def table_binary_classification_bymouse(dataDB, phase, binaryDimension, metric, 
 
         bc = table_binary_classification(dataDB, phase, binaryDimension, metric, dimOrdTarget, queryDict, settings)
         bc['mousename'] = mousename
-        rezDF = rezDF.append(bc, ignore_index=True)
+        rezDF = pd.concat([rezDF, bc], ignore_index=True)
 
     display(rezDF)

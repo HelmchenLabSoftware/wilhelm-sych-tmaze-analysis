@@ -2,8 +2,9 @@
 
 Language: Python 3 (tested on 3.6, 3.8)
 
-1. pip install -r requirements.txt
-2. Install in-house library [mesostat](https://github.com/HelmchenLabSoftware/mesostat-dev) and its dependencies
+1. pip install -e .
+2. pip install -r requirements.txt
+3. Install in-house library [mesostat](https://github.com/HelmchenLabSoftware/mesostat-dev) and its dependencies
 
 #  Structure
 

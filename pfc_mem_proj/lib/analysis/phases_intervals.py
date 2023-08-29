@@ -11,8 +11,9 @@ from mesostat.visualization.mpl_violin import violins_labeled
 from mesostat.visualization.mpl_barplot import barplot_labeled
 from mesostat.visualization.mpl_stat_annot import stat_annot_patches
 
-from src.lib.metric_wrapper import metric_by_selector_all, metric_by_selector
-import src.lib.tests_phase_signle_cell as single_cell_tests
+from pfc_mem_proj.lib.metric_wrapper import metric_by_selector_all, metric_by_selector
+import pfc_mem_proj.lib.tests_phase_signle_cell as single_cell_tests
+from pfc_mem_proj.lib.excel_export import write_excel_1D, write_excel_2D
 
 
 def plot_avg_firing_rate_by_neuron(dataDB, datatype, phaseType, haveWaiting=True, cmap=None):
@@ -171,6 +172,12 @@ def plot_significant_firing_rate_by_neuron(dataDB, datatype, phaseType, cmapConf
     cumulConfDict = {}
     cumulMeansSignDict = {}
 
+    # Initialize writers
+    excelWriterPVal2D = pd.ExcelWriter('excel_out/pval_matrixplot_' + datatype + '_' + phaseType + '.xlsx')
+    excelWriterConfMat = pd.ExcelWriter('excel_out/confmat_' + datatype + '_' + phaseType + '.xlsx')
+    if phaseType == 'phase':
+        excelWriterMeansSign = pd.ExcelWriter('excel_out/signmeans_' + datatype + '_phase.xlsx')
+
     for mousename in sorted(dataDB.mice):
         print('doing mouse', mousename)
         nChannel = dataDB.get_nchannel(mousename, datatype)
@@ -238,6 +245,10 @@ def plot_significant_firing_rate_by_neuron(dataDB, datatype, phaseType, cmapConf
 
                 ax1[iCol].set_yticks(np.arange(0, len(negLogPVals2D), 10))
 
+                # Store data
+                thisLoopKey = mousename + '_' + performance + '_' + direction
+                write_excel_2D(negLogPVals2D, excelWriterPVal2D, thisLoopKey)
+
                 ###########################
                 # Plot confusion matrix
                 ###########################
@@ -249,6 +260,9 @@ def plot_significant_firing_rate_by_neuron(dataDB, datatype, phaseType, cmapConf
 
                 # Store confusion matrices
                 cumulConfDict[(mousename, direction, performance)] = confMat
+
+                # Store data
+                write_excel_2D(confMat, excelWriterConfMat, thisLoopKey)
 
                 #####################################
                 # Compare rate/DFF for cells of different phases
@@ -283,6 +297,10 @@ def plot_significant_firing_rate_by_neuron(dataDB, datatype, phaseType, cmapConf
                     # Combine means for all mice
                     cumulMeansSignDict[(mousename, direction, performance)] = meansSignByPhase
 
+                    # Store data
+                    for m, phaseName in zip(meansSignByPhase, phaseNames):
+                        write_excel_1D(np.array(m), excelWriterMeansSign, thisLoopKey + '_' + phaseName)
+
                 iCol += 1
 
         fig1.savefig(mousename + '_significantrate_' + datatype + '_' + phaseType + '.pdf', dpi=600)
@@ -315,6 +333,10 @@ def plot_significant_firing_rate_by_neuron(dataDB, datatype, phaseType, cmapConf
                     ax2All[iCol].axvline(x=bline - 1, linestyle='--', color=colorBoundingLines, alpha=1)
                     ax2All[iCol].axhline(y=bline - 1, linestyle='--', color=colorBoundingLines, alpha=1)
 
+            # Store data
+            thisLoopKey = 'ALL_' + performance + '_' + direction
+            write_excel_2D(confAvg, excelWriterConfMat, thisLoopKey)
+
             #####################################
             # Compare rate/DFF for cells of different phases
             #####################################
@@ -334,6 +356,10 @@ def plot_significant_firing_rate_by_neuron(dataDB, datatype, phaseType, cmapConf
                                 joinMeans=False, printLogP=False, sigTestPairs=sigTestPairs,
                                 violinInner='box')  # 'point')
 
+                # Store data
+                for m, phaseName in zip(meansThisParam, phaseNames):
+                    write_excel_1D(np.array(m), excelWriterMeansSign, thisLoopKey + '_' + phaseName)
+
             iCol += 1
 
     fig2All.savefig('Allmice_significantrate_' + datatype + '_' + phaseType + '_confusion.pdf', dpi=600)
@@ -342,6 +368,12 @@ def plot_significant_firing_rate_by_neuron(dataDB, datatype, phaseType, cmapConf
     if phaseType == 'phase':
         fig3All.savefig('Allmice_significantcell_' + datatype + '_' + phaseType + '_rate_comparison.pdf', dpi=600)
         plt.close()
+
+    # # Close writers
+    excelWriterPVal2D.close()
+    excelWriterConfMat.close()
+    if phaseType == 'phase':
+        excelWriterMeansSign.close()
 
 
 def plot_df_count_by_mice(ax, data1, data2, label1, label2, xLabels, nCellPerMouse):
@@ -362,7 +394,7 @@ def plot_df_count_by_mice(ax, data1, data2, label1, label2, xLabels, nCellPerMou
     ax.set_xticklabels(xLabels)
 
 
-def plot_df_count_combined(ax, data1, data2, label1, label2, nCellPerMouse):
+def plot_df_count_combined(ax, data1, data2, label1, label2, nCellPerMouse, verbose=False):
     # Convert from counts to fractions
     dataNorm1 = np.array(data1) / np.array(nCellPerMouse)
     dataNorm2 = np.array(data2) / np.array(nCellPerMouse)
@@ -374,6 +406,9 @@ def plot_df_count_combined(ax, data1, data2, label1, label2, nCellPerMouse):
     # Compute p-values and combine
     pVals = [binom_test(d1, d1 + d2) for d1, d2 in zip(data1, data2)]
     pValMean = combine_pvalues(pVals)[1]
+
+    if verbose:
+        print('pvals', pVals, 'combined', pValMean)
 
     # Plot Bars
     width = 0.30  # the width of the bars
@@ -406,6 +441,9 @@ def plot_save_significantly_firing_neurons(dataDB, datatype, phaseType, exclusiv
     else:
         performanceValues = ['Correct', 'Mistake', 'All']
         directionValues = ['L', 'R', 'All']
+
+    # Initialize writers
+    excelWriterCombined = pd.ExcelWriter('excel_out/sign_fraction_' + datatype + '_' + phaseType + '.xlsx')
 
     mice = list(sorted(dataDB.mice))
     for mousename in mice:
@@ -469,11 +507,16 @@ def plot_save_significantly_firing_neurons(dataDB, datatype, phaseType, exclusiv
             ######################
 
             figCountAll, axCountAll = plt.subplots(figsize=(5, 5))
-            plot_df_count_combined(axCountAll, *nSignCellByMouse, *exclusiveLabels, nCellPerMouse)
+            plot_df_count_combined(axCountAll, *nSignCellByMouse, *exclusiveLabels, nCellPerMouse, verbose=True)
             print(figKey, exclusiveLabels, nSignCellByMouse)
 
             figCountAll.savefig('significantrate_combined_' + figKey + '.pdf')
             plt.close()
+
+            # Save data
+            write_excel_2D(np.array(nSignCellByMouse).T, excelWriterCombined, figKey, colnames=np.array(exclusiveLabels))
+
+    excelWriterCombined.close()
 
 
 def plot_ratio_enc_mt(dataDB, datatype):

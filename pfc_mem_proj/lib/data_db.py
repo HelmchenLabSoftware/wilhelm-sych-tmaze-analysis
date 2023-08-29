@@ -11,7 +11,7 @@ from mesostat.utils.system import getfiles_walk
 import mesostat.utils.pandas_helper as pandas_helper
 from mesostat.utils.signals.filter import zscore
 
-from src.lib.baseline_lib import crop_quantile
+from pfc_mem_proj.lib.baseline_lib import crop_quantile
 
 from IPython.display import display
 from ipywidgets import IntProgress

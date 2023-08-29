@@ -1,7 +1,7 @@
 import numpy as np
 from scipy.stats import mannwhitneyu
 
-from src.lib.metric_wrapper import metric_by_selector_all
+from pfc_mem_proj.lib.metric_wrapper import metric_by_selector_all
 
 
 # For each interval, perform rank-sum test against all other intervals
