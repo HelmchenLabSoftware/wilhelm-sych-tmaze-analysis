@@ -23,6 +23,19 @@ def test_inverse_all_selectors(dataDB, queryDict, phaseType, metricName='mean', 
 
     rez3D = metric_by_selector_all(dataDB, queryDict, phaseType, metricName, 'pr', settings, ranges=ranges, haveWaiting=haveWaiting)
 
+    '''
+    NOTE: Non-Uniform MesoStat metric calculator has the following feature: It always preserves the expected
+    output dimensions. Thus, if there is a trial for which there are 0 samples, that trial is not dropped, but
+    instead a NAN is returned for that trial.
+    
+    This test cannot handle NAN input. Thus, we have to drop trials for which there is at least one NAN value.
+    For Maria's data, missing data is for all of the channels of a given interval and a given trial.
+    Thus, there is no advantage in doing channel-wise reduction
+    '''
+    # Drop NAN trials
+    idxsNANTrials = np.any(np.isnan(rez3D), axis=(0, 1))
+    rez3D = rez3D[:, :, ~idxsNANTrials]
+
     nInterval, nChannel, nTrial = rez3D.shape
     pVals2D = []
     for iChannel in range(nChannel):

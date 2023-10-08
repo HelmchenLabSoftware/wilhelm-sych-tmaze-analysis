@@ -12,7 +12,7 @@ from mesostat.visualization.mpl_barplot import barplot_labeled
 from mesostat.visualization.mpl_stat_annot import stat_annot_patches
 
 from pfc_mem_proj.lib.metric_wrapper import metric_by_selector_all, metric_by_selector
-import pfc_mem_proj.lib.tests_phase_signle_cell as single_cell_tests
+import pfc_mem_proj.lib.tests_phase_single_cell as single_cell_tests
 from pfc_mem_proj.lib.excel_export import write_excel_1D, write_excel_2D
 
 
