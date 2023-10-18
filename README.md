@@ -36,7 +36,6 @@ The below code performs the exploratory study of advanced statistical questions,
 Folder "t_maze_control" contains custom-written Matlab scripts enabling the control of the automated T-maze apparatus. wxguitmaze is the main program running the automated maze. The rest of the functions support hardware initialization, detection of the mouse and recording of the data.
 
 ## Installation instructions
-
 Language: Python 3 (tested on 3.6, 3.8)
 
 1. pip install -e .
@@ -44,20 +43,19 @@ Language: Python 3 (tested on 3.6, 3.8)
 3. Install in-house library [mesostat](https://github.com/HelmchenLabSoftware/mesostat-dev) and its dependencies
 
 ##  Structure
-
 The front end of the code is contained in 6 jupyter notebooks inside the "pfc_mem_proj" folder
 
-* "maria-analysis-1-explore.ipynb" - Visualization of raw data
+* "1-explore.ipynb" - Visualization of raw data
 
-* "maria-analysis-2-phases-and-intervals.ipynb" - Comparative analysis of task phases
+* "2-phases-and-intervals.ipynb" - Comparative analysis of task phases
 
-* "maria-analysis-3-LR-CM.ipynb" - Statistical testing of differences between Left/Right turns and Correct/Mistake performance.
+* "3-LR-CM.ipynb" - Statistical testing of differences between Left/Right turns and Correct/Mistake performance.
 
-* "maria-analysis-4-trajectories-clustering.ipynb" - Study of neuronal trajectories in dimensionality-reduced manifolds, as well as activity clustering
+* "4-trajectories-clustering.ipynb" - Study of neuronal trajectories in dimensionality-reduced manifolds, as well as activity clustering
 
-* "maria-analysis-5-temporal-order.ipynb" - Study of within-period temporal orderability of neurons
+* "5-temporal-order.ipynb" - Study of within-period temporal orderability of neurons
 
-* "maria-analysis-6-LR-CM-classification.ipynb" - Machine learning approach to classification of Left/Right turns and Correct/Mistake performance.
+* "6-LR-CM-classification.ipynb" - Machine learning approach to classification of Left/Right turns and Correct/Mistake performance.
 
 ## Usage
 Each cell of each notebook computes a specific plot or a statistical result. Cells are labeled for clarity. The 2nd cell in each notebook contains paths to raw data (dff) and deconvolved data (deconv). These paths are absolute, and need to be adjusted by the user. Each path points to the root folder of the corresponding dataset.
