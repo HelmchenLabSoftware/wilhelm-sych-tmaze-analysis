@@ -1,0 +1,7 @@
+wxgiutmaze
+
+% Start additional MATLAB sessions
+ !matlab -nosplash -minimize -r "wxrecordvideo" &
+ !matlab -nosplash -minimize -r "wxrecordsignals" &
+ !matlab -nosplash -minimize -r "wxdisplaysignals" &
+ !matlab -nosplash -minimize -r "wxlasermodulation" & 
