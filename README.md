@@ -1,6 +1,6 @@
 This repository contains the codes used for behavioural, photometric and post-hoc statistical analyses of the paper [Wilhelm, Sych et al. NatComm 2023](https://doi.org/10.1101/2021.12.03.471159). The below analyses were performed by different collaborators and written in different programming languages. Please consult the corresponding description below to learn how to use the specific parts of the code.
 
-# 1. Photometry Analysis (M. Chernysheva)
+# 1. Photometry Analysis (M. Wilhelm)
 
 Folder "matlab_scripts_photometry_analysis" contains the functions for analysis of the recorded photometry signals. We used the same algorithms for calculating the resampled z-scored dFF (utilities), but structured these functions by the signal type/ figures it relates to.
 * “averaging_whole_session_photometry” is used to calculate the dFF signal and average it across trials and mice (Fig2a)
