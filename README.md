@@ -27,13 +27,13 @@ Folder "matlab_scripts_behavioral_analysis" contains primarily behavioral analys
 
 Consult the file "Behavioral data analysis.docx" for further details.
 
-# 3. T-Maze Controls (J.S.L. Warren)
-
-Folder "t_maze_control" contains custom-written Matlab scripts enabling the control of the automated T-maze apparatus. wxguitmaze is the main program running the automated maze. The rest of the functions support hardware initialization, detection of the mouse and recording of the data.
-
-# 4. Post-hoc statistical analysis (A. Fomins)
+# 3. Post-hoc statistical analysis (A. Fomins)
 
 The below code performs the exploratory study of advanced statistical questions, such as cell-specific differences across periods and phases, direction and performance discrimination, clustering, and temporal orderability of cells.
+
+# 4. T-Maze Controls (J.S.L. Warren)
+
+Folder "t_maze_control" contains custom-written Matlab scripts enabling the control of the automated T-maze apparatus. wxguitmaze is the main program running the automated maze. The rest of the functions support hardware initialization, detection of the mouse and recording of the data.
 
 ## Installation instructions
 
